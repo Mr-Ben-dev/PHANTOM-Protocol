@@ -1,0 +1,23 @@
+{
+  "name": "phantom-protocol-contracts",
+  "version": "1.0.0",
+  "description": "PHANTOM Protocol — The Encrypted Prediction Engine",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run tasks/deploy.ts --network arbitrumSepolia",
+    "deploy:local": "hardhat run tasks/deploy.ts --network hardhat"
+  },
+  "devDependencies": {
+    "@fhenixprotocol/cofhe-contracts": "latest",
+    "@cofhe/hardhat-plugin": "latest",
+    "@cofhe/mock-contracts": "latest",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0",
+    "dotenv": "^16.4.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.0.0"
+  }
+}

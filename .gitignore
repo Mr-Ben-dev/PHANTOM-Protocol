@@ -1,0 +1,21 @@
+node_modules/
+cache/
+artifacts/
+typechain-types/
+.env
+.env.*
+*.env
+*.js.map
+dist/
+
+# Internal project docs (keep README.md only)
+plan.md
+guide.md
+skill.md
+about.md
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+frontend/.env
+frontend/.env.*
