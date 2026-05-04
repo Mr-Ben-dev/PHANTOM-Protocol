@@ -567,3 +567,157 @@ Test categories:
   "outputs": []
 }
 ```
+
+
+---
+
+## Frontend Design (Updated Wave 3 Session)
+
+### Rounds.tsx Improvements
+- **`formatPrice(value: bigint)`** → `$80,500.99` (divides by 1e8, adds $, comma-separates)
+- **`formatCountdown(settleAt: bigint)`** → `4m 18s` countdown badge on OPEN rounds
+- **Round card** redesigned:
+  - Header: asset badge + status chip + interval + live countdown badge
+  - Price grid: 4-column (Start Price, End Price, Lock, Settle) with dollar formatting
+  - Pool bar: YES%/NO% visual bar with percentages
+  - Bettors count
+  - Action buttons: UP/DOWN bet input + Claim/Refund based on status
+- **Operator Console** redesigned:
+  - Asset selector (BTC/USD, ETH/USD, SOL/USD buttons)
+  - Interval selector (5m, 15m)
+  - Start price auto-populated from live Binance price via `useLivePrice`
+  - Shows human-readable `$80,500.99` preview alongside raw uint64
+
+### Markets.tsx — Polymarket-Style Redesign
+- **8 static featured markets** with Unsplash images, category chips, YES/NO % bars, volume, deadline
+- **Category filters** sidebar: All / Crypto / Finance / Politics / Regulation / Tech
+- **Stats strip**: Total Volume, Active Markets, FHE Encrypted %
+- **FeaturedCard** component: image header, category badge, HOT/NEW chip, YES/NO bar, bet buttons
+- **Detail modal** on click: full-size image, question, YES/NO buttons, "preview market" label
+- On-chain markets section below featured grid (reads from PhantomBet contract via `useMarkets`)
+- Integrated tabs: Active / Resolved / My Bets
+
+---
+
+## How to Test Everything
+
+### 1. Start the dev server
+```bash
+cd frontend
+bun install       # or npm install --legacy-peer-deps
+bun run dev       # → http://localhost:5173
+```
+
+### 2. Test Live Prices (Rounds page)
+1. Navigate to `/rounds`
+2. You should see live BTC/ETH/SOL prices updating in real-time (top of Operator Console)
+3. Click "BTC/USD" asset selector → startPrice input auto-fills with current BTC price in uint64
+4. The preview shows `$84,xxx.xx` next to the raw number
+
+### 3. Test Round Creation (Manual)
+1. Connect MetaMask to Arbitrum Sepolia (chain 421614)
+2. Make sure your wallet is the deployer (0x18398aA1...) or has been added as roundBot
+3. Select BTC/USD, 5m interval — start price auto-fills
+4. Click "+ Create Round"
+5. Approve MetaMask tx → round appears in the list within seconds
+6. **Verify on Arbiscan**: https://sepolia.arbiscan.io/address/0xa6cE9C483B4Fd7e63d9740af53b09F7be19BA6aa
+
+### 4. Test Betting
+1. A round must be OPEN (status chip = green "OPEN")
+2. Enter ETH amount (e.g. `0.001`)
+3. Click UP or DOWN → MetaMask tx → bet recorded on-chain
+4. Round card shows `1 bettors` after tx confirms
+
+### 5. Test the Keeper Bot
+```bash
+cd bot
+cp .env.example .env  # fill in PRIVATE_KEY, PHANTOM_ROUNDS_ADDRESS
+npm install
+npx tsx keeper.ts
+```
+Output should show:
+```
+═══════════════════════════════════════════════════════════
+  PHANTOM Keeper Bot v2 — 24/7 round automation
+  Keeper  : 0x18398aA1...
+  Contract: 0xa6cE9C48...
+  Poll    : 30s
+═══════════════════════════════════════════════════════════
+[2025-...] ─── tick ─────────────────────────────────────────────────────
+[2025-...] Auto-creating BTC/USD @ $84,210.45...
+[2025-...]   ✅ createRound(BTC/USD): 0x...hash...
+[2025-...]   Rounds on-chain: 3
+```
+
+### 6. Wait for Auto-Resolve
+- After `interval` seconds (300s for 5m rounds), keeper automatically calls `resolveRound`
+- Round status changes: OPEN → LOCKED → RESOLVED
+- Resolved rounds show green (UP) or red (DOWN) end price
+
+### 7. Test Claim Payout
+1. After round reaches RESOLVED status
+2. If you bet on the winning side, "Claim Payout" button appears
+3. Click → MetaMask tx → ETH transferred to your wallet
+
+### 8. Test Markets Page
+1. Navigate to `/markets`
+2. See 8 featured Polymarket-style cards with images
+3. Use category filter (Crypto / Finance / Politics...) to filter
+4. Click any card to see the detail modal with YES/NO buttons
+5. "Create Market" button opens the on-chain create market modal
+
+### 9. Verify On-Chain State via Arbiscan
+- PhantomRounds read functions: `getRoundCount`, `getRoundCore(id)`, `getRoundSettlement(id)`
+- Check keeper wallet has `roundBots(0x18398...)` = true
+- Check keeper wallet has `oracleSigners(0x18398...)` = true
+- These are set in the constructor automatically
+
+### 10. Run Contract Tests
+```bash
+cd ..   # root of repo
+npx hardhat test test/PhantomRounds.test.ts
+# → 54 tests passing
+```
+
+---
+
+## 24/7 Bot Deployment (Production)
+
+### Option A: PM2 (recommended for VPS)
+```bash
+npm install -g pm2
+cd bot
+pm2 start "npx tsx keeper.ts" --name phantom-keeper --restart-delay 5000
+pm2 save
+pm2 startup  # enable on reboot
+```
+
+### Option B: systemd (Linux VPS)
+```ini
+# /etc/systemd/system/phantom-keeper.service
+[Unit]
+Description=PHANTOM Protocol Keeper Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/bot
+ExecStart=/usr/bin/npx tsx keeper.ts
+Restart=always
+RestartSec=10
+EnvironmentFile=/path/to/bot/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+systemctl enable phantom-keeper
+systemctl start phantom-keeper
+systemctl status phantom-keeper
+```
+
+### Option C: Railway / Render (cloud)
+- Set env vars: PRIVATE_KEY, RPC_URL, PHANTOM_ROUNDS_ADDRESS, POLL_INTERVAL_SECONDS
+- Start command: `npx tsx bot/keeper.ts`
+- Auto-restarts on crash
+
