@@ -275,11 +275,6 @@ const Rounds = () => {
               {message}
             </motion.div>
           )}
-          {encryptError && (
-            <motion.div variants={item} className="mb-6 liquid-glass rounded-2xl p-4 text-sm text-red-300 break-words">
-              {encryptError.message}
-            </motion.div>
-          )}
 
           <motion.div variants={item} className="grid lg:grid-cols-3 gap-8">
             <section className="lg:col-span-2">
@@ -330,7 +325,7 @@ const Rounds = () => {
                   {filtered.map((round) => {
                     const roundKey = String(round.id);
                     const canBet = round.status === 1 && !round.hasBet;
-                    const busy = busyRound === roundKey || isEncrypting;
+                    const busy = busyRound === roundKey;
 
                     return (
                       <motion.article key={roundKey} variants={item} className="liquid-glass rounded-2xl p-6 hover:border-border/40 transition-colors border border-border/20">
