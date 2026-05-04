@@ -77,8 +77,11 @@ async function fetchPrice(symbol: string): Promise<number> {
 }
 
 async function signOracle(roundId: bigint, endPrice: bigint, observedAt: bigint): Promise<Hex> {
+  // oracleMessageHash() returns keccak256("PHANTOM_ROUND_ORACLE" || chainId || contract || ...)
+  // The contract then calls _toEthSignedMessageHash(hash) which prepends "\x19Ethereum Signed Message:\n32"
+  // before ecrecover. So we must use signMessage({ raw: hash }) which also prepends that prefix.
   const msgHash = await publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "oracleMessageHash", args: [roundId, endPrice, observedAt] });
-  return oracleAccount.sign({ hash: msgHash });
+  return oracleAccount.signMessage({ message: { raw: msgHash } });
 }
 
 async function sendTx(label: string, fn: () => Promise<Hex>): Promise<Hex | null> {

@@ -97,6 +97,31 @@ export function usePhantomRounds() {
     [writeContractAsync, publicClient],
   );
 
+  /**
+   * Place a bet with plaintext direction — no CoFHE SDK required.
+   * The direction is trivially encrypted on-chain via FHE.asEbool(bool).
+   * This is the primary bet function used by the frontend.
+   */
+  const placeRoundBetSimple = useCallback(
+    async (
+      roundId: bigint,
+      isUp: boolean,
+      ethAmount: bigint,
+    ) => {
+      ensureRoundsConfigured();
+      const gasPrice = await safeGasPrice(publicClient);
+      return writeContractAsync({
+        address: PHANTOM_ROUNDS_ADDRESS,
+        abi: PHANTOM_ROUNDS_ABI,
+        functionName: "placeRoundBetSimple",
+        args: [roundId, isUp],
+        value: ethAmount,
+        gasPrice,
+      });
+    },
+    [writeContractAsync, publicClient],
+  );
+
   const lockRound = useCallback(
     async (roundId: bigint) => {
       ensureRoundsConfigured();
@@ -259,6 +284,7 @@ export function usePhantomRounds() {
   return {
     createRound,
     placeRoundBet,
+    placeRoundBetSimple,
     lockRound,
     resolveRound,
     resolveRoundEncrypted,

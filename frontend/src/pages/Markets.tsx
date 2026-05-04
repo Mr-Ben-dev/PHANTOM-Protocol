@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Lock, Clock, Users, Plus, ShieldCheck, TrendingUp, TrendingDown, Flame, Star, Zap, Globe, BarChart2, Filter } from "lucide-react";
+import { Lock, Clock, Users, Plus, ShieldCheck, Globe, BarChart2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/shared/Navbar";
 import { BetInterface } from "@/components/markets/BetInterface";
@@ -10,108 +10,9 @@ import { ResolutionPanel } from "@/components/markets/ResolutionPanel";
 import { useMarkets, type Market } from "@/hooks/useMarkets";
 import { useHlsVideo } from "@/hooks/useHlsVideo";
 
-// ─── Static featured markets (Polymarket-style preview data) ──────────────────
-
-interface FeaturedMarket {
-  id: string;
-  category: string;
-  question: string;
-  image: string;
-  yesPercent: number;
-  volume: string;
-  deadline: string;
-  hot?: boolean;
-  new?: boolean;
-}
-
-const FEATURED: FeaturedMarket[] = [
-  {
-    id: "f1",
-    category: "Crypto",
-    question: "Will Bitcoin reach $150,000 by end of 2025?",
-    image: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=640&q=80",
-    yesPercent: 61,
-    volume: "$4.2M",
-    deadline: "Dec 31, 2025",
-    hot: true,
-  },
-  {
-    id: "f2",
-    category: "Crypto",
-    question: "Will Ethereum break $5,000 in Q3 2025?",
-    image: "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=640&q=80",
-    yesPercent: 44,
-    volume: "$2.8M",
-    deadline: "Sep 30, 2025",
-    hot: true,
-  },
-  {
-    id: "f3",
-    category: "Finance",
-    question: "Will the Fed cut rates before September 2025?",
-    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=640&q=80",
-    yesPercent: 38,
-    volume: "$1.9M",
-    deadline: "Sep 1, 2025",
-  },
-  {
-    id: "f4",
-    category: "Politics",
-    question: "Will the US establish a Strategic Bitcoin Reserve in 2025?",
-    image: "https://images.unsplash.com/photo-1541336032412-2048a678540d?w=640&q=80",
-    yesPercent: 52,
-    volume: "$3.1M",
-    deadline: "Dec 31, 2025",
-    new: true,
-  },
-  {
-    id: "f5",
-    category: "Crypto",
-    question: "Will Solana flip Ethereum by market cap in 2025?",
-    image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=640&q=80",
-    yesPercent: 18,
-    volume: "$890K",
-    deadline: "Dec 31, 2025",
-  },
-  {
-    id: "f6",
-    category: "Regulation",
-    question: "Will any G20 country ban crypto trading in 2025?",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=640&q=80",
-    yesPercent: 12,
-    volume: "$640K",
-    deadline: "Dec 31, 2025",
-  },
-  {
-    id: "f7",
-    category: "Crypto",
-    question: "Will a Bitcoin spot ETF see $10B+ inflows in Q2 2025?",
-    image: "https://images.unsplash.com/photo-1591696205602-2f950c417cb9?w=640&q=80",
-    yesPercent: 71,
-    volume: "$5.4M",
-    deadline: "Jun 30, 2025",
-    hot: true,
-  },
-  {
-    id: "f8",
-    category: "Tech",
-    question: "Will OpenAI release GPT-5 before August 2025?",
-    image: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=640&q=80",
-    yesPercent: 55,
-    volume: "$1.2M",
-    deadline: "Aug 1, 2025",
-    new: true,
-  },
-];
+// ─── Static featured markets removed — only real on-chain markets shown ──────
 
 const CATEGORIES = ["All", "Crypto", "Finance", "Politics", "Regulation", "Tech"];
-const CATEGORY_COLORS: Record<string, string> = {
-  Crypto:     "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  Finance:    "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  Politics:   "text-purple-400 bg-purple-400/10 border-purple-400/20",
-  Regulation: "text-red-400 bg-red-400/10 border-red-400/20",
-  Tech:       "text-cyan-400 bg-cyan-400/10 border-cyan-400/20",
-};
 
 const sidebarModules = [
   { name: "PhantomBet",       wave: 1, active: true  },
@@ -136,95 +37,7 @@ function formatDeadline(ts: bigint): string {
   });
 }
 
-// ─── Polymarket-style market card ─────────────────────────────────────────────
-
-function FeaturedCard({ market, onClick }: { market: FeaturedMarket; onClick: () => void }) {
-  const categoryColor = CATEGORY_COLORS[market.category] ?? "text-foreground/60 bg-white/[0.06]";
-  const no = 100 - market.yesPercent;
-  return (
-    <motion.div
-      variants={item}
-      onClick={onClick}
-      className="group liquid-glass rounded-2xl overflow-hidden cursor-pointer hover:border-border/40 border border-border/20 transition-colors"
-    >
-      {/* Image header */}
-      <div className="relative h-36 overflow-hidden">
-        <img
-          src={market.image}
-          alt={market.question}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-        {/* Category chip */}
-        <div className="absolute top-3 left-3 flex gap-2">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${categoryColor}`}>
-            {market.category}
-          </span>
-          {market.hot && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-orange-500/20 border border-orange-500/30 text-orange-400 flex items-center gap-1">
-              <Flame className="w-2.5 h-2.5" /> HOT
-            </span>
-          )}
-          {market.new && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
-              <Zap className="w-2.5 h-2.5" /> NEW
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="p-4">
-        <h3 className="text-sm font-semibold text-foreground mb-3 line-clamp-2 group-hover:text-hero-heading transition-colors">
-          {market.question}
-        </h3>
-
-        {/* YES/NO bar */}
-        <div className="mb-3">
-          <div className="flex justify-between text-xs font-mono mb-1">
-            <span className="text-emerald-400 font-semibold">YES {market.yesPercent}%</span>
-            <span className="text-red-400 font-semibold">NO {no}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-400/70 transition-all"
-              style={{ width: `${market.yesPercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Footer: vol + deadline */}
-        <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <BarChart2 className="w-2.5 h-2.5" /> {market.volume} vol
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-2.5 h-2.5" /> {market.deadline}
-          </span>
-        </div>
-
-        {/* Buttons */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); }}
-            className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] text-emerald-400 text-xs font-semibold py-1.5 hover:bg-emerald-500/[0.14] transition-colors"
-          >
-            YES
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); }}
-            className="rounded-xl border border-red-500/30 bg-red-500/[0.07] text-red-400 text-xs font-semibold py-1.5 hover:bg-red-500/[0.14] transition-colors"
-          >
-            NO
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── On-chain market card (small) ─────────────────────────────────────────────
+// ─── On-chain market card ─────────────────────────────────────────────────────
 
 function ChainCard({ market, selected, onClick }: { market: Market; selected: boolean; onClick: () => void }) {
   const yes = market.poolsRevealed && market.revealedTotalPool > 0n
@@ -275,13 +88,8 @@ const Markets = () => {
   const [activeTab, setActiveTab] = useState<"active" | "resolved" | "my bets">("active");
   const [category, setCategory] = useState("All");
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedFeatured, setSelectedFeatured] = useState<FeaturedMarket | null>(null);
 
   const bgVideoRef = useHlsVideo("https://stream.mux.com/Jwr2RhmsNrd6GEspBNgm02vJsRZAGlaoQIh4AucGdASw.m3u8");
-
-  const filteredFeatured = useMemo(() =>
-    category === "All" ? FEATURED : FEATURED.filter((m) => m.category === category),
-  [category]);
 
   const filteredChain = useMemo(() => markets.filter((m) => {
     if (activeTab === "active") return !m.resolved;
@@ -292,6 +100,7 @@ const Markets = () => {
 
   const selected = markets.find((m) => m.id === selectedId) ?? filteredChain[0];
   const hasOnChain = !isLoading && filteredChain.length > 0;
+  const activeCount = markets.filter((m) => !m.resolved).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -377,8 +186,8 @@ const Markets = () => {
             {/* Stats strip */}
             <motion.div variants={item} className="grid grid-cols-3 gap-4 mb-8 lg:grid-cols-3">
               {[
-                { label: "Total Volume", value: "$18.4M", icon: <BarChart2 className="w-4 h-4 text-primary" /> },
-                { label: "Active Markets", value: String(FEATURED.length + markets.filter((m) => !m.resolved).length), icon: <Flame className="w-4 h-4 text-orange-400" /> },
+                { label: "Active Markets", value: String(activeCount), icon: <BarChart2 className="w-4 h-4 text-primary" /> },
+                { label: "Total Markets", value: String(markets.length), icon: <Globe className="w-4 h-4 text-blue-400" /> },
                 { label: "FHE Encrypted", value: "100%", icon: <ShieldCheck className="w-4 h-4 text-emerald-400" /> },
               ].map((s) => (
                 <div key={s.label} className="liquid-glass rounded-xl p-4 flex items-center gap-3">
@@ -391,24 +200,7 @@ const Markets = () => {
               ))}
             </motion.div>
 
-            {/* Featured grid — Polymarket style */}
-            <motion.div variants={item} className="mb-10">
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="w-4 h-4 text-amber-400" />
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Featured Markets</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredFeatured.map((market) => (
-                  <FeaturedCard
-                    key={market.id}
-                    market={market}
-                    onClick={() => { setSelectedFeatured(market); setSelectedId(null); }}
-                  />
-                ))}
-              </div>
-            </motion.div>
-
-            {/* On-chain section */}
+            {/* Markets section */}
             <motion.div variants={item}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -456,7 +248,7 @@ const Markets = () => {
                         key={String(market.id)}
                         market={market}
                         selected={selected?.id === market.id}
-                        onClick={() => { setSelectedId(market.id); setSelectedFeatured(null); }}
+                        onClick={() => setSelectedId(market.id)}
                       />
                     ))}
                   </div>
@@ -508,60 +300,6 @@ const Markets = () => {
           </motion.div>
         </main>
       </div>
-
-      {/* Featured market detail modal */}
-      {selectedFeatured && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedFeatured(null)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="liquid-glass rounded-2xl overflow-hidden max-w-lg w-full border border-border/30 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative h-48 overflow-hidden">
-              <img src={selectedFeatured.image} alt={selectedFeatured.question} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
-              <div className="absolute top-3 left-3 flex gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${CATEGORY_COLORS[selectedFeatured.category] ?? ""}`}>
-                  {selectedFeatured.category}
-                </span>
-                {selectedFeatured.hot && <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-orange-500/20 border border-orange-500/30 text-orange-400 flex items-center gap-1"><Flame className="w-2.5 h-2.5" /> HOT</span>}
-              </div>
-              <button
-                className="absolute top-3 right-3 w-7 h-7 rounded-full bg-background/60 border border-border/30 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setSelectedFeatured(null)}
-              >×</button>
-            </div>
-            <div className="p-6">
-              <h2 className="text-base font-semibold mb-4">{selectedFeatured.question}</h2>
-              <div className="mb-4">
-                <div className="flex justify-between text-sm font-mono mb-1.5">
-                  <span className="text-emerald-400 font-semibold">YES {selectedFeatured.yesPercent}%</span>
-                  <span className="text-red-400 font-semibold">NO {100 - selectedFeatured.yesPercent}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-red-400/20 overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-400/70" style={{ width: `${selectedFeatured.yesPercent}%` }} />
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground mb-5">
-                <span className="flex items-center gap-1"><BarChart2 className="w-3 h-3" /> {selectedFeatured.volume} volume</span>
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {selectedFeatured.deadline}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-400 text-sm font-semibold py-3 hover:bg-emerald-500/[0.18] transition-colors flex items-center justify-center gap-2">
-                  <TrendingUp className="w-4 h-4" /> YES
-                </button>
-                <button className="rounded-xl border border-red-500/30 bg-red-500/[0.08] text-red-400 text-sm font-semibold py-3 hover:bg-red-500/[0.18] transition-colors flex items-center justify-center gap-2">
-                  <TrendingDown className="w-4 h-4" /> NO
-                </button>
-              </div>
-              <p className="text-[10px] font-mono text-muted-foreground/60 text-center mt-3">
-                This is a preview market — on-chain deployment via PhantomBet coming Wave 2
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {showCreate && (
         <CreateMarketModal

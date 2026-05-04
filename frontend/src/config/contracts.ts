@@ -13,15 +13,15 @@
 
 export const PHANTOM_BET_ADDRESS =
   (import.meta.env.VITE_PHANTOM_BET_ADDRESS as `0x${string}`) ||
-  "0xD91A27a7BB8e4b3a16c6B201e938aafEedC20377";
+  "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228";
 
 export const PHANTOM_TOKEN_ADDRESS =
   (import.meta.env.VITE_PHANTOM_TOKEN_ADDRESS as `0x${string}`) ||
-  "0xBe087E28cB2c96e85EE56E3d0C6F47f1ee0af6d1";
+  "0x78AF03022b1cD35e75642Ac2A043a6d2cE472228";
 
 export const PHANTOM_ROUNDS_ADDRESS =
   (import.meta.env.VITE_PHANTOM_ROUNDS_ADDRESS as `0x${string}`) ||
-  "0xa6cE9C483B4Fd7e63d9740af53b09F7be19BA6aa";
+  "0x76db8a0429d19e8440e3D290F79c0613834c72a1";
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
@@ -471,13 +471,24 @@ export const PHANTOM_ROUNDS_ABI = [
     outputs: [{ name: "roundId", type: "uint256" }],
   },
   {
-    // ETH stake is msg.value; only direction is FHE-encrypted
+    // ETH stake is msg.value; only direction is FHE-encrypted (CoFHE SDK required)
     name: "placeRoundBet",
     type: "function",
     stateMutability: "payable",
     inputs: [
       { name: "roundId",        type: "uint256"    },
       { name: "encDirectionUp", ...IN_EBOOL_TYPE   },
+    ],
+    outputs: [],
+  },
+  {
+    // Plain bool direction — trivially encrypted on-chain. Works without CoFHE SDK.
+    name: "placeRoundBetSimple",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "isUp",    type: "bool"    },
     ],
     outputs: [],
   },

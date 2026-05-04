@@ -238,6 +238,53 @@ contract PhantomRounds is PhantomACL {
         emit RoundBetPlaced(roundId, msg.sender, msg.value);
     }
 
+    /**
+     * @notice Place a bet with plaintext direction (trivially encrypted on-chain).
+     * @dev Same as placeRoundBet but takes a plain bool instead of an encrypted InEbool.
+     *      The direction is trivially encrypted via FHE.asEbool(bool) — stake amount
+     *      remains the only public value. Use this when the CoFHE client SDK is
+     *      unavailable or for CLI/keeper interactions.
+     */
+    function placeRoundBetSimple(
+        uint256 roundId,
+        bool    isUp
+    ) external payable whenNotPaused {
+        Round storage r = rounds[roundId];
+        require(r.status == RoundStatus.OPEN, "PhantomRounds: not open");
+        require(block.timestamp < r.lockAt, "PhantomRounds: locked");
+        require(!hasRoundBet[roundId][msg.sender], "PhantomRounds: already bet");
+        require(msg.value > 0, "PhantomRounds: no stake");
+
+        uint64 amountGwei = uint64(msg.value / 1 gwei);
+        require(amountGwei > 0, "PhantomRounds: stake too small");
+
+        // Trivially encrypt the plaintext direction — no client-side CoFHE SDK needed
+        ebool directionUp = FHE.asEbool(isUp);
+        FHE.allowThis(directionUp);
+        FHE.allow(directionUp, msg.sender);
+        roundDirections[roundId][msg.sender] = directionUp;
+
+        // Accumulate into encrypted pools via FHE.select
+        euint64 gwei64  = FHE.asEuint64(amountGwei);
+        euint64 zero    = FHE.asEuint64(0);
+        euint64 upAdd   = FHE.select(directionUp, gwei64, zero);
+        euint64 downAdd = FHE.select(directionUp, zero, gwei64);
+        FHE.allowThis(upAdd);
+        FHE.allowThis(downAdd);
+
+        upPools[roundId]   = FHE.add(upPools[roundId], upAdd);
+        downPools[roundId] = FHE.add(downPools[roundId], downAdd);
+        FHE.allowThis(upPools[roundId]);
+        FHE.allowThis(downPools[roundId]);
+
+        ethStakes[roundId][msg.sender] = msg.value;
+        r.totalEth  += msg.value;
+        r.bettorCount++;
+        hasRoundBet[roundId][msg.sender] = true;
+
+        emit RoundBetPlaced(roundId, msg.sender, msg.value);
+    }
+
     function lockRound(uint256 roundId) external onlyBotOrOwner {
         Round storage r = rounds[roundId];
         require(r.status == RoundStatus.OPEN, "PhantomRounds: not open");

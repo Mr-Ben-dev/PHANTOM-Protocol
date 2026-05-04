@@ -18,7 +18,6 @@ import Navbar from "@/components/shared/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWalletAuth } from "@/hooks/useWalletAuth";
-import { useEncryptBet } from "@/hooks/useEncryptBet";
 import { usePhantomRounds } from "@/hooks/usePhantomRounds";
 import { type Round, useRounds } from "@/hooks/useRounds";
 import { useLivePrice } from "@/hooks/useLivePrice";
@@ -70,8 +69,7 @@ function intervalLabel(seconds: number) {
 const Rounds = () => {
   const { address, isConnected, connect } = useWalletAuth();
   const { rounds, isLoading, configured, refetch } = useRounds();
-  const { encrypt, isEncrypting, error: encryptError } = useEncryptBet();
-  const { createRound, placeRoundBet, claimRoundPayout, refundCanceledRound } = usePhantomRounds();
+  const { createRound, placeRoundBetSimple, claimRoundPayout, refundCanceledRound } = usePhantomRounds();
   const { prices, connected: wsConnected } = useLivePrice();
 
   const [activeTab, setActiveTab] = useState<"open" | "locked" | "resolved" | "mine">("open");
@@ -134,10 +132,10 @@ const Rounds = () => {
     setBusyRound(String(round.id));
     setMessage(null);
     try {
-      const encrypted = await encrypt(ethAmount, directionUp);
-      if (!encrypted) return;
-      const txHash = await placeRoundBet(round.id, encrypted.encSide, ethAmount);
-      setMessage(`Bet submitted: ${txHash}`);
+      // placeRoundBetSimple — sends plaintext direction, trivially encrypted on-chain
+      // No CoFHE client-side encryption needed; works directly with MetaMask
+      const txHash = await placeRoundBetSimple(round.id, directionUp, ethAmount);
+      setMessage(`✅ Bet placed ${directionUp ? "UP ↑" : "DOWN ↓"}: ${txHash}`);
       setAmountByRound((prev) => ({ ...prev, [String(round.id)]: "" }));
       refetch();
     } catch (err) {
