@@ -1,6 +1,6 @@
 # PHANTOM Protocol — Wave 3 (PhantomRounds) — Complete End-to-End Reference
 
-> **Status:** LIVE on Arbitrum Sepolia — all contracts deployed, frontend connected, keeper bot verified working
+> **Status:** LIVE on Arbitrum Sepolia — all contracts deployed, frontend connected, keeper bot verified working, **8 real prediction markets seeded on PhantomBet**
 
 ---
 
@@ -8,12 +8,29 @@
 
 | Contract | Address | Explorer |
 |---|---|---|
-| **PhantomBet** | `0xD91A27a7BB8e4b3a16c6B201e938aafEedC20377` | [arbiscan](https://sepolia.arbiscan.io/address/0xD91A27a7BB8e4b3a16c6B201e938aafEedC20377) |
-| **PhantomToken** | `0xBe087E28cB2c96e85EE56E3d0C6F47f1ee0af6d1` | [arbiscan](https://sepolia.arbiscan.io/address/0xBe087E28cB2c96e85EE56E3d0C6F47f1ee0af6d1) |
-| **PhantomRounds** | `0xa6cE9C483B4Fd7e63d9740af53b09F7be19BA6aa` | [arbiscan](https://sepolia.arbiscan.io/address/0xa6cE9C483B4Fd7e63d9740af53b09F7be19BA6aa) |
+| **PhantomBet** | `0x31a578f2c63a85Ae13E1e12A859a2B5f775De228` | [arbiscan](https://sepolia.arbiscan.io/address/0x31a578f2c63a85Ae13E1e12A859a2B5f775De228) |
+| **PhantomToken** | `0x78AF03022b1cD35e75642Ac2A043a6d2cE472228` | [arbiscan](https://sepolia.arbiscan.io/address/0x78AF03022b1cD35e75642Ac2A043a6d2cE472228) |
+| **PhantomRounds** | `0x76db8a0429d19e8440e3D290F79c0613834c72a1` | [arbiscan](https://sepolia.arbiscan.io/address/0x76db8a0429d19e8440e3D290F79c0613834c72a1) |
 
 **Deployer / Keeper wallet:** `0x18398aA1dFdA63F30529c46E90ac41c1E75F7Ecf`  
 **Network RPC:** `https://sepolia-rollup.arbitrum.io/rpc`
+
+---
+
+## Live Markets on PhantomBet (seeded 2026-05-04)
+
+8 real prediction markets deployed on-chain via `bot/seed-markets.ts`. Markets accept FHE-encrypted YES/NO bets, pools are encrypted until resolution.
+
+| ID | Question | Deadline | Tx |
+|---|---|---|---|
+| 0 | Will Bitcoin reach $150,000 by December 2026? | Dec 1, 2026 | [0x435c…](https://sepolia.arbiscan.io/tx/0x435c0d0e41e7c61b61df3b6f88b487189849cffdd5cdc36852fa04df96cd024b) |
+| 1 | Will Ethereum break $5,000 in Q3 2026? | Sep 30, 2026 | [0x4e46…](https://sepolia.arbiscan.io/tx/0x4e46a3426eb8bbe62458d6192819b02a93d302fb63d7ac6290a6d0fa245fd416) |
+| 2 | Will the US Federal Reserve cut rates before August 2026? | Jul 31, 2026 | [0xcef3…](https://sepolia.arbiscan.io/tx/0xcef31aa2f37490571b1538a2730cb7f6b42d6e6ae8cca0f453cb8dd80f3c70d9) |
+| 3 | Will Solana flip Ethereum by market cap before end of 2026? | Dec 31, 2026 | [0x1ece…](https://sepolia.arbiscan.io/tx/0x1ece759c4fa400e5caeb83a280f35baf0ae2a3252566d2e4293bd0cc987a02d6) |
+| 4 | Will DeFi total TVL exceed $200B by end of 2026? | Dec 31, 2026 | [0x516f…](https://sepolia.arbiscan.io/tx/0x516fb26c9758eb30c68923ca4f0b8d142e44869def1dafbe3358d504e73f85b0) |
+| 5 | Will any AI token enter the crypto top 10 by market cap in Q3 2026? | Sep 30, 2026 | [0xb008…](https://sepolia.arbiscan.io/tx/0xb0088b9b4c5d0896ff636acc15e0d2598c7fb65f8037bbb46498394d6095051c) |
+| 6 | Will Bitcoin spot ETF daily inflows exceed $1B in a single day in 2026? | Dec 31, 2026 | [0x4ed1…](https://sepolia.arbiscan.io/tx/0x4ed1f7f9cbded6b0993b817e7c99e4ef7bcc24278d459204832a476c565f38a0) |
+| 7 | Will Ethereum Layer 2 total TVL surpass $100B by September 2026? | Sep 30, 2026 | [0xf6a3…](https://sepolia.arbiscan.io/tx/0xf6a3d5ad2aa5160ff53e5c093ad82c9f4848337293a089bc6775dcb448a1e0b6) |
 
 ---
 

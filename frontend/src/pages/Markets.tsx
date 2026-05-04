@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Lock, Clock, Users, Plus, ShieldCheck, Globe, BarChart2, Filter } from "lucide-react";
+import { Lock, Clock, Users, Plus, ShieldCheck, Globe, BarChart2, Filter, Flame, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/shared/Navbar";
 import { BetInterface } from "@/components/markets/BetInterface";
@@ -9,6 +9,7 @@ import { PositionPanel } from "@/components/markets/PositionPanel";
 import { ResolutionPanel } from "@/components/markets/ResolutionPanel";
 import { useMarkets, type Market } from "@/hooks/useMarkets";
 import { useHlsVideo } from "@/hooks/useHlsVideo";
+import { getMarketMeta, CATEGORY_COLORS } from "@/config/market-metadata";
 
 // ─── Static featured markets removed — only real on-chain markets shown ──────
 
@@ -40,41 +41,81 @@ function formatDeadline(ts: bigint): string {
 // ─── On-chain market card ─────────────────────────────────────────────────────
 
 function ChainCard({ market, selected, onClick }: { market: Market; selected: boolean; onClick: () => void }) {
+  const meta = getMarketMeta(market.id);
   const yes = market.poolsRevealed && market.revealedTotalPool > 0n
     ? Math.round(Number(market.revealedYesPool) * 100 / Number(market.revealedTotalPool))
     : 50;
+  const categoryColor = meta ? (CATEGORY_COLORS[meta.category] ?? "") : "";
+
   return (
     <motion.div
       variants={item}
       onClick={onClick}
-      className={`group liquid-glass rounded-2xl p-5 cursor-pointer transition-all border ${selected ? "border-primary/25 bg-primary/[0.03]" : "border-border/20 hover:border-border/35"}`}
+      className={`group liquid-glass rounded-2xl overflow-hidden cursor-pointer transition-all border ${selected ? "border-primary/25 bg-primary/[0.03]" : "border-border/20 hover:border-border/35"}`}
     >
-      <div className="flex items-start gap-3 mb-3">
-        <div className="flex-1">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 mb-2 inline-block">
-            On-chain · FHE
+      {/* Image header (shown when metadata has image) */}
+      {meta?.image && (
+        <div className="relative h-32 overflow-hidden">
+          <img
+            src={meta.image}
+            alt={market.question}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+          {/* Category + status badges */}
+          <div className="absolute top-2.5 left-2.5 flex gap-1.5">
+            {meta.category && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${categoryColor}`}>
+                {meta.tag ?? meta.category}
+              </span>
+            )}
+            {meta.hot && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-orange-500/20 border border-orange-500/30 text-orange-400 flex items-center gap-1">
+                <Flame className="w-2.5 h-2.5" /> HOT
+              </span>
+            )}
+            {meta.isNew && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
+                <Zap className="w-2.5 h-2.5" /> NEW
+              </span>
+            )}
+          </div>
+          <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full font-mono text-[10px] uppercase ${!market.resolved ? "bg-primary/20 text-primary border border-primary/30" : "bg-blue-500/20 text-blue-400"}`}>
+            {market.resolved ? "resolved" : "live"}
           </span>
-          <h3 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-hero-heading transition-colors">
-            {market.question}
-          </h3>
         </div>
-        <span className={`shrink-0 px-2 py-0.5 rounded-full font-mono text-[10px] uppercase ${!market.resolved ? "bg-primary/10 text-primary" : "bg-blue-500/10 text-blue-400"}`}>
-          {market.resolved ? "resolved" : "live"}
-        </span>
-      </div>
-      {/* Percentage bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-[10px] font-mono mb-1">
-          <span className="text-emerald-400">YES {yes}%</span>
-          <span className="text-red-400">NO {100 - yes}%</span>
+      )}
+
+      <div className="p-4">
+        {!meta?.image && (
+          <div className="flex items-center justify-between mb-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20">
+              On-chain · FHE
+            </span>
+            <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase ${!market.resolved ? "bg-primary/10 text-primary" : "bg-blue-500/10 text-blue-400"}`}>
+              {market.resolved ? "resolved" : "live"}
+            </span>
+          </div>
+        )}
+        <h3 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-hero-heading transition-colors mb-3">
+          {market.question}
+        </h3>
+        {/* YES / NO bar */}
+        <div className="mb-3">
+          <div className="flex justify-between text-[10px] font-mono mb-1">
+            <span className="text-emerald-400 font-semibold">YES {yes}%</span>
+            <span className="text-red-400 font-semibold">NO {100 - yes}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-400/60 transition-all" style={{ width: `${yes}%` }} />
+          </div>
         </div>
-        <div className="h-1 rounded-full bg-red-400/20 overflow-hidden">
-          <div className="h-full rounded-full bg-emerald-400/60" style={{ width: `${yes}%` }} />
+        {/* Footer */}
+        <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+          <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" /> {String(market.bettorCount)}</span>
+          <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> {formatDeadline(market.deadline)}</span>
         </div>
-      </div>
-      <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
-        <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" /> {String(market.bettorCount)}</span>
-        <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> {formatDeadline(market.deadline)}</span>
       </div>
     </motion.div>
   );
@@ -256,37 +297,86 @@ const Markets = () => {
                   {/* Detail panel */}
                   {selected && (
                     <motion.div variants={item} className="lg:col-span-3 space-y-4">
-                      <div className="liquid-glass rounded-2xl p-6">
-                        <div className="flex items-start justify-between mb-5">
-                          <div>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 mb-2 inline-block">
-                              On-chain · FHE · Arb Sepolia
-                            </span>
-                            <h2 className="text-lg font-semibold text-hero-heading">{selected.question}</h2>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                              <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {String(selected.bettorCount)} bettors</span>
-                              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatDeadline(selected.deadline)}</span>
+                      <div className="liquid-glass rounded-2xl overflow-hidden">
+                        {/* Image banner in detail panel */}
+                        {getMarketMeta(selected.id)?.image && (
+                          <div className="relative h-40 overflow-hidden">
+                            <img
+                              src={getMarketMeta(selected.id)!.image}
+                              alt={selected.question}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+                            <div className="absolute bottom-3 left-4 flex gap-2">
+                              {getMarketMeta(selected.id)?.category && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${CATEGORY_COLORS[getMarketMeta(selected.id)!.category] ?? ""}`}>
+                                  {getMarketMeta(selected.id)?.tag ?? getMarketMeta(selected.id)?.category}
+                                </span>
+                              )}
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/20 text-primary border border-primary/30">
+                                On-chain · FHE · Arb Sepolia
+                              </span>
                             </div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full font-mono text-xs uppercase ${!selected.resolved ? "bg-primary/10 text-primary border border-primary/20" : "bg-blue-500/10 text-blue-400"}`}>
-                            {selected.resolved ? "resolved" : "live"}
-                          </span>
-                        </div>
+                        )}
 
-                        {!selected.resolved ? (
-                          <>
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-5">
+                            <div>
+                              {!getMarketMeta(selected.id)?.image && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 mb-2 inline-block">
+                                  On-chain · FHE · Arb Sepolia
+                                </span>
+                              )}
+                              <h2 className="text-lg font-semibold text-hero-heading">{selected.question}</h2>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                                <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {String(selected.bettorCount)} bettors</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatDeadline(selected.deadline)}</span>
+                              </div>
+                            </div>
+                            <span className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs uppercase ${!selected.resolved ? "bg-primary/10 text-primary border border-primary/20" : "bg-blue-500/10 text-blue-400"}`}>
+                              {selected.resolved ? "resolved" : "live"}
+                            </span>
+                          </div>
+
+                          {/* Live pool breakdown */}
+                          {selected.poolsRevealed && selected.revealedTotalPool > 0n ? (
+                            <div className="mb-5 p-4 rounded-xl bg-white/[0.03] border border-border/20">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-3">Live Pool</p>
+                              <div className="flex justify-between text-sm font-mono mb-2">
+                                <span className="text-emerald-400 font-semibold">
+                                  YES — {(Number(selected.revealedYesPool) / 1e9).toFixed(4)} ETH
+                                </span>
+                                <span className="text-red-400 font-semibold">
+                                  NO — {(Number(selected.revealedNoPool) / 1e9).toFixed(4)} ETH
+                                </span>
+                              </div>
+                              <div className="h-2 rounded-full bg-red-400/20 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-emerald-400/70 transition-all"
+                                  style={{ width: `${selected.revealedTotalPool > 0n ? Math.round(Number(selected.revealedYesPool) * 100 / Number(selected.revealedTotalPool)) : 50}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] font-mono text-muted-foreground mt-2 text-right">
+                                Total: {(Number(selected.revealedTotalPool) / 1e9).toFixed(4)} ETH
+                              </p>
+                            </div>
+                          ) : !selected.resolved ? (
                             <p className="text-xs text-muted-foreground mb-4 flex items-center gap-2">
                               <Lock className="w-3 h-3 text-primary shrink-0" />
-                              Bet amount and side encrypted before submission via CoFHE.
+                              Pool amounts FHE-encrypted until resolution — direction hidden from all parties.
                             </p>
+                          ) : null}
+
+                          {!selected.resolved ? (
                             <BetInterface marketId={selected.id} deadline={selected.deadline} resolved={selected.resolved} onSuccess={refetch} />
-                          </>
-                        ) : (
-                          <div className="text-center py-6">
-                            <ShieldCheck className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                            <p className="text-lg font-semibold">{selected.poolsRevealed ? `Resolved: ${selected.outcome ? "YES" : "NO"}` : "Awaiting pool reveal"}</p>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="text-center py-6">
+                              <ShieldCheck className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                              <p className="text-lg font-semibold">{selected.poolsRevealed ? `Resolved: ${selected.outcome ? "YES ✓" : "NO ✓"}` : "Awaiting pool reveal"}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <PositionPanel marketId={selected.id} hasBet={!!selected.hasBet} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onClaimed={refetch} />
