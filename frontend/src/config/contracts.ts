@@ -13,11 +13,17 @@
 
 export const PHANTOM_BET_ADDRESS =
   (import.meta.env.VITE_PHANTOM_BET_ADDRESS as `0x${string}`) ||
-  "0xFB9c10423EAaD015dDb04f5aC85273f1B3F7A566";
+  "0xD91A27a7BB8e4b3a16c6B201e938aafEedC20377";
 
 export const PHANTOM_TOKEN_ADDRESS =
   (import.meta.env.VITE_PHANTOM_TOKEN_ADDRESS as `0x${string}`) ||
-  "0x31666B7ECf736c0c6014F0cd63C646B7f4Af3887";
+  "0xBe087E28cB2c96e85EE56E3d0C6F47f1ee0af6d1";
+
+export const PHANTOM_ROUNDS_ADDRESS =
+  (import.meta.env.VITE_PHANTOM_ROUNDS_ADDRESS as `0x${string}`) ||
+  "0xa6cE9C483B4Fd7e63d9740af53b09F7be19BA6aa";
+
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID ?? 421614);
 
@@ -255,6 +261,450 @@ export const PHANTOM_BET_ABI = [
     inputs: [
       { name: "marketId", type: "uint256", indexed: true },
       { name: "bettor",   type: "address", indexed: true },
+    ],
+  },
+] as const;
+
+// ─── PhantomRounds ABI ─────────────────────────────────────────────────────
+
+export const PHANTOM_ROUNDS_ABI = [
+  // ── View: counts & mappings ────────────────────────────────────
+  {
+    name: "getRoundCount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "roundCount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "pendingFees",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "paused",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "roundBots",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "oracleSigners",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  // ── View: round data ──────────────────────────────────────────
+  {
+    name: "getRoundCore",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [
+      { name: "asset",           type: "bytes32" },
+      { name: "intervalSeconds", type: "uint32"  },
+      { name: "startPrice",      type: "uint64"  },
+      { name: "lockAt",          type: "uint256" },
+      { name: "settleAt",        type: "uint256" },
+      { name: "bettorCount",     type: "uint256" },
+      { name: "creator",         type: "address" },
+      { name: "status",          type: "uint8"   },
+    ],
+  },
+  {
+    name: "getRoundSettlement",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [
+      { name: "endPrice",          type: "uint64"  },
+      { name: "status",            type: "uint8"   },
+      { name: "outcomeUp",         type: "bool"    },
+      { name: "poolsRevealed",     type: "bool"    },
+      { name: "revealedUpPool",    type: "uint64"  },
+      { name: "revealedDownPool",  type: "uint64"  },
+      { name: "revealedTotalPool", type: "uint64"  },
+      { name: "oracleRoundId",     type: "bytes32" },
+      { name: "observedAt",        type: "uint256" },
+    ],
+  },
+  {
+    name: "getRoundEth",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [
+      { name: "totalEth",  type: "uint256" },
+      { name: "userStake", type: "uint256" },
+    ],
+  },
+  {
+    name: "hasRoundBet",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "hasRoundClaimed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "directionRevealed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "revealedDirections",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "ethStakes",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns ebool handle as uint256 (viem decodes as bigint for cofheClient)
+    name: "getRoundBet",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns ebool handle as uint256
+    name: "getRoundDirection",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns euint64 handle as uint256
+    name: "getUpPool",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns euint64 handle as uint256
+    name: "getDownPool",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "oracleMessageHash",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "roundId",    type: "uint256" },
+      { name: "endPrice",   type: "uint64"  },
+      { name: "observedAt", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  // ── Writes: lifecycle ─────────────────────────────────────────
+  {
+    name: "createRound",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "asset",           type: "bytes32" },
+      { name: "intervalSeconds", type: "uint32"  },
+      { name: "startPrice",      type: "uint64"  },
+      { name: "lockAt",          type: "uint256" },
+      { name: "settleAt",        type: "uint256" },
+      { name: "oracleRoundId",   type: "bytes32" },
+    ],
+    outputs: [{ name: "roundId", type: "uint256" }],
+  },
+  {
+    // ETH stake is msg.value; only direction is FHE-encrypted
+    name: "placeRoundBet",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      { name: "roundId",        type: "uint256"    },
+      { name: "encDirectionUp", ...IN_EBOOL_TYPE   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "lockRound",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "resolveRound",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId",         type: "uint256" },
+      { name: "endPrice",        type: "uint64"  },
+      { name: "observedAt",      type: "uint256" },
+      { name: "oracleSignature", type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    // SOL path — keeper encrypts price client-side; FHE.gte runs on ciphertext
+    name: "resolveRoundEncrypted",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId",      type: "uint256"    },
+      { name: "encEndPrice",  ...IN_EUINT64_TYPE  },
+    ],
+    outputs: [],
+  },
+  {
+    // Called by keeper after CoFHE threshold decryption for PENDING_REVEAL rounds
+    name: "revealRoundOutcome",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId",    type: "uint256" },
+      { name: "outcomeUp",  type: "bool"    },
+      { name: "endPrice",   type: "uint64"  },
+      { name: "outcomeSig", type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    // Actual contract: (roundId, upPlaintext, upSig, downPlaintext, downSig)
+    name: "revealRoundPools",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId",      type: "uint256" },
+      { name: "upPlaintext",  type: "uint64"  },
+      { name: "upSig",        type: "bytes"   },
+      { name: "downPlaintext",type: "uint64"  },
+      { name: "downSig",      type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    // User calls with CoFHE threshold sig to prove their encrypted direction
+    name: "revealMyDirection",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId",     type: "uint256" },
+      { name: "directionUp", type: "bool"    },
+      { name: "sig",         type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "claimRoundPayout",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "refundCanceledRound",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "roundId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "cancelRound",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "reason",  type: "string"  },
+    ],
+    outputs: [],
+  },
+  // ── Writes: admin ──────────────────────────────────────────────
+  {
+    name: "setRoundBot",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "bot",     type: "address" },
+      { name: "allowed", type: "bool"    },
+    ],
+    outputs: [],
+  },
+  {
+    name: "setOracleSigner",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "signer",  type: "address" },
+      { name: "allowed", type: "bool"    },
+    ],
+    outputs: [],
+  },
+  {
+    name: "setPaused",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "value", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "withdrawFees",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "to", type: "address" }],
+    outputs: [],
+  },
+  // ── Events ─────────────────────────────────────────────────────
+  {
+    name: "RoundCreated",
+    type: "event",
+    inputs: [
+      { name: "roundId",         type: "uint256", indexed: true  },
+      { name: "asset",           type: "bytes32", indexed: true  },
+      { name: "intervalSeconds", type: "uint32",  indexed: false },
+      { name: "startPrice",      type: "uint64",  indexed: false },
+      { name: "lockAt",          type: "uint256", indexed: false },
+      { name: "settleAt",        type: "uint256", indexed: false },
+      { name: "oracleRoundId",   type: "bytes32", indexed: false },
+      { name: "creator",         type: "address", indexed: false },
+    ],
+  },
+  {
+    name: "RoundBetPlaced",
+    type: "event",
+    inputs: [
+      { name: "roundId", type: "uint256", indexed: true },
+      { name: "bettor",  type: "address", indexed: true },
+      { name: "ethStake",type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "RoundLocked",
+    type: "event",
+    inputs: [{ name: "roundId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "RoundResolved",
+    type: "event",
+    inputs: [
+      { name: "roundId",    type: "uint256", indexed: true  },
+      { name: "outcomeUp",  type: "bool",    indexed: false },
+      { name: "startPrice", type: "uint64",  indexed: false },
+      { name: "endPrice",   type: "uint64",  indexed: false },
+      { name: "observedAt", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "RoundPendingReveal",
+    type: "event",
+    inputs: [{ name: "roundId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "RoundOutcomeRevealed",
+    type: "event",
+    inputs: [
+      { name: "roundId",   type: "uint256", indexed: true  },
+      { name: "outcomeUp", type: "bool",    indexed: false },
+      { name: "endPrice",  type: "uint64",  indexed: false },
+    ],
+  },
+  {
+    name: "RoundPoolsRevealed",
+    type: "event",
+    inputs: [
+      { name: "roundId",   type: "uint256", indexed: true  },
+      { name: "upPool",    type: "uint64",  indexed: false },
+      { name: "downPool",  type: "uint64",  indexed: false },
+      { name: "totalPool", type: "uint64",  indexed: false },
+    ],
+  },
+  {
+    name: "RoundPayoutClaimed",
+    type: "event",
+    inputs: [
+      { name: "roundId", type: "uint256", indexed: true },
+      { name: "bettor",  type: "address", indexed: true },
+      { name: "amount",  type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "DirectionRevealed",
+    type: "event",
+    inputs: [
+      { name: "roundId",     type: "uint256", indexed: true  },
+      { name: "bettor",      type: "address", indexed: true  },
+      { name: "directionUp", type: "bool",    indexed: false },
+    ],
+  },
+  {
+    name: "RoundCanceled",
+    type: "event",
+    inputs: [
+      { name: "roundId", type: "uint256", indexed: true  },
+      { name: "reason",  type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "FeesWithdrawn",
+    type: "event",
+    inputs: [
+      { name: "to",     type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
     ],
   },
 ] as const;

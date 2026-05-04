@@ -8,6 +8,11 @@ typechain-types/
 *.js.map
 dist/
 
+# Bot
+bot/node_modules/
+bot/.env
+bot/.env.*
+
 # Internal project docs (keep README.md only)
 plan.md
 guide.md
@@ -19,3 +24,5 @@ frontend/dist/
 frontend/node_modules/
 frontend/.env
 frontend/.env.*
+winnerwave1.md
+core.md

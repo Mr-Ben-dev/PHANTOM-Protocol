@@ -1,0 +1,19 @@
+{
+  "name": "phantom-keeper",
+  "version": "1.0.0",
+  "description": "PHANTOM Protocol keeper bot — automates round lifecycle + oracle price submission",
+  "type": "module",
+  "main": "keeper.ts",
+  "scripts": {
+    "start": "tsx keeper.ts",
+    "start:prod": "node --loader tsx/esm keeper.ts"
+  },
+  "dependencies": {
+    "viem": "^2.47.6",
+    "tsx": "^4.19.2",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5"
+  }
+}

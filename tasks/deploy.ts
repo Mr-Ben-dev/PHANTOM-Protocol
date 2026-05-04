@@ -5,7 +5,7 @@ import * as path from "path";
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("=".repeat(60));
-  console.log("PHANTOM Protocol — Wave 1 Deployment");
+  console.log("PHANTOM Protocol — Wave 1 + Wave 3 Deployment");
   console.log("=".repeat(60));
   console.log("Deployer:", deployer.address);
 
@@ -34,6 +34,16 @@ async function main() {
   console.log("✅ PhantomToken deployed to:", tokenAddress);
 
   // ──────────────────────────────────────────────────────────────
+  // Deploy PhantomRounds
+  // ──────────────────────────────────────────────────────────────
+  console.log("\nDeploying PhantomRounds...");
+  const PhantomRounds = await ethers.getContractFactory("PhantomRounds");
+  const phantomRounds = await PhantomRounds.deploy();
+  await phantomRounds.waitForDeployment();
+  const roundsAddress = await phantomRounds.getAddress();
+  console.log("✅ PhantomRounds deployed to:", roundsAddress);
+
+  // ──────────────────────────────────────────────────────────────
   // Summary
   // ──────────────────────────────────────────────────────────────
   console.log("\n" + "=".repeat(60));
@@ -41,6 +51,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log("PhantomBet:   ", betAddress);
   console.log("PhantomToken: ", tokenAddress);
+  console.log("PhantomRounds:", roundsAddress);
   console.log("Chain ID:      421614 (Arbitrum Sepolia)");
   console.log("Explorer:      https://sepolia.arbiscan.io/address/" + betAddress);
   console.log("=".repeat(60));
@@ -49,6 +60,7 @@ async function main() {
   const envContent = [
     `VITE_PHANTOM_BET_ADDRESS=${betAddress}`,
     `VITE_PHANTOM_TOKEN_ADDRESS=${tokenAddress}`,
+    `VITE_PHANTOM_ROUNDS_ADDRESS=${roundsAddress}`,
     `VITE_CHAIN_ID=421614`,
   ].join("\n") + "\n";
 
@@ -60,6 +72,7 @@ async function main() {
   console.log("\n--- Copy to frontend/src/config/contracts.ts ---");
   console.log(`export const PHANTOM_BET_ADDRESS = "${betAddress}" as const;`);
   console.log(`export const PHANTOM_TOKEN_ADDRESS = "${tokenAddress}" as const;`);
+  console.log(`export const PHANTOM_ROUNDS_ADDRESS = "${roundsAddress}" as const;`);
 }
 
 main().catch((error) => {
