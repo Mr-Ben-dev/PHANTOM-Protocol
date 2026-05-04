@@ -2,11 +2,11 @@ import { motion } from "framer-motion";
 import { Lock, Unlock } from "lucide-react";
 
 const waves = [
-  { wave: 1, name: "PhantomBet", desc: "Binary Yes/No prediction markets. Encrypted bets, encrypted pools, encrypted payouts.", status: "LIVE", live: true },
-  { wave: 2, name: "PhantomMulti", desc: "Multi-outcome markets. Elections, sports, crypto prices. 2–10 options per market.", status: "Coming Wave 2", live: false },
-  { wave: 3, name: "PhantomLiquidity", desc: "Encrypted AMM. Automated market making on ciphertext. Pool depths invisible.", status: "Coming Wave 3", live: false },
-  { wave: 4, name: "PhantomFutures", desc: "Perpetual prediction markets. Never-expiring positions with encrypted funding rates.", status: "Coming Wave 4", live: false },
-  { wave: 5, name: "PhantomOracle", desc: "AI-powered resolution. Encrypted oracle inference. Cross-market analytics.", status: "Coming Wave 5", live: false },
+  { wave: 1, name: "PhantomBet", desc: "Binary YES/NO prediction markets. Encrypted bets, encrypted pools, 8 real markets live on-chain.", status: "LIVE", live: true },
+  { wave: 2, name: "PhantomToken ($PHTM)", desc: "FHERC20 encrypted native token. All balances are euint64 ciphertexts — invisible on-chain.", status: "LIVE", live: true },
+  { wave: 3, name: "PhantomRounds", desc: "Automated price-round engine. 5m/15m BTC/ETH/SOL rounds with keeper bot, oracle signatures, FHE pools.", status: "LIVE", live: true },
+  { wave: 4, name: "PhantomMulti", desc: "Multi-outcome markets. Elections, sports, crypto. Up to 210 encrypted outcome buckets per market.", status: "Coming Wave 4", live: false },
+  { wave: 5, name: "PhantomOracle", desc: "AI-powered resolution. Encrypted oracle inference on FHE data — trustless settlement, no resolver required.", status: "Coming Wave 5", live: false },
 ];
 
 const RoadmapSection = () => {

@@ -37,11 +37,15 @@ const NumbersSection = () => {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="liquid-glass rounded-3xl p-12 grid md:grid-cols-2"
+          className="liquid-glass rounded-3xl p-12 grid md:grid-cols-3"
         >
           <div className="text-center md:border-r border-border/50 pb-8 md:pb-0 md:pr-12">
-            <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">15+</div>
-            <div className="text-muted-foreground mt-2">FHE operations on-chain</div>
+            <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">3</div>
+            <div className="text-muted-foreground mt-2">Live contracts on-chain</div>
+          </div>
+          <div className="text-center py-8 md:py-0 md:px-12 border-t md:border-t-0 md:border-r border-border/50">
+            <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">8</div>
+            <div className="text-muted-foreground mt-2">Real prediction markets seeded</div>
           </div>
           <div className="text-center pt-8 md:pt-0 md:pl-12 border-t md:border-t-0 border-border/50">
             <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">100%</div>

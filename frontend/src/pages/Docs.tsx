@@ -38,16 +38,16 @@ const Docs = () => {
         >
           <motion.div variants={item} className="liquid-glass rounded-full px-4 py-1.5 mb-6 inline-flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Protocol Reference</span>
-            <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full">Wave 1  Live</span>
+            <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full">Wave 3 — Live</span>
           </motion.div>
           <motion.h1 variants={item} className="text-4xl sm:text-5xl font-semibold text-hero-heading leading-tight mb-4">
             PHANTOM Protocol Docs
           </motion.h1>
           <motion.p variants={item} className="text-lg text-hero-sub max-w-2xl leading-relaxed">
-            The complete technical reference for PHANTOM''s encrypted prediction engine  from FHE fundamentals and contract architecture to Wave 1 specifications and the five-wave roadmap.
+            The complete technical reference for PHANTOM’s encrypted prediction engine — from FHE fundamentals and contract architecture to Wave 1–3 specifications, PhantomRounds, and the full five-wave roadmap.
           </motion.p>
           <motion.div variants={item} className="flex flex-wrap gap-3 mt-6">
-            {["Overview", "FHE Engine", "Wave 1 Contracts", "ACL System", "Integration", "Roadmap"].map((sec) => (
+            {["Overview", "FHE Engine", "Contracts", "Wave 3 Rounds", "ACL System", "Integration", "Roadmap"].map((sec) => (
               <span key={sec} className="liquid-glass rounded-full px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">{sec}</span>
             ))}
           </motion.div>
@@ -145,18 +145,19 @@ const Docs = () => {
           </DocSection>
 
           {/* WAVE 1 CONTRACTS */}
-          <DocSection icon={FileCode} badge="Wave 1" title="Smart Contract Architecture" id="contracts">
+          <DocSection icon={FileCode} badge="Waves 1–3" title="Smart Contract Architecture" id="contracts">
             <p className="text-foreground/80 leading-relaxed mb-6">
               Wave 1 ships three Solidity 0.8.25 contracts compiled with <code className="text-primary font-mono text-sm">viaIR: true</code> and <code className="text-primary font-mono text-sm">evmVersion: cancun</code>  required for the full Fhenix CoFHE interface. All modules inherit from PhantomACL.
             </p>
             <div className="liquid-glass rounded-2xl p-6 mb-6">
               <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-primary" /> Deployed Addresses  Arbitrum Sepolia
+                <Globe className="w-4 h-4 text-primary" /> Deployed Addresses — Arbitrum Sepolia (Chain ID 421614)
               </h4>
               <div className="space-y-3">
                 {[
-                  { name: "PhantomBet", addr: "0xFB9c10423EAaD015dDb04f5aC85273f1B3F7A566", label: "Core binary market contract" },
-                  { name: "PhantomToken ($PHTM)", addr: "0x31666B7ECf736c0c6014F0cd63C646B7f4Af3887", label: "FHERC20 encrypted native token" },
+                  { name: "PhantomBet", addr: "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228", label: "Wave 1 — Binary prediction market" },
+                  { name: "PhantomToken ($PHTM)", addr: "0x78AF03022b1cD35e75642Ac2A043a6d2cE472228", label: "Wave 2 — FHERC20 encrypted native token" },
+                  { name: "PhantomRounds", addr: "0x76db8a0429d19e8440e3D290F79c0613834c72a1", label: "Wave 3 — Automated price-round engine" },
                 ].map((c) => (
                   <div key={c.name} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                     <div className="shrink-0">
@@ -232,6 +233,86 @@ const Docs = () => {
               <p className="text-sm text-muted-foreground">
                 <strong className="text-foreground">$PHTM</strong>  PHANTOM''s native encrypted token. Implements the FHERC20 standard from Fhenix CoFHE. All balances are stored as <code className="text-primary font-mono text-xs">euint64</code> ciphertexts. Transfer amounts are encrypted; only the sender, recipient, and authorized contracts hold ACL permissions to view balances.
               </p>
+            </div>
+          </DocSection>
+
+          {/* WAVE 3 — PHANTOMROUNDS */}
+          <DocSection icon={Zap} badge="Wave 3" title="PhantomRounds — Encrypted Price-Round Engine" id="wave3">
+            <p className="text-foreground/80 leading-relaxed">
+              PhantomRounds is PHANTOM’s automated price-round market engine, live on Arbitrum Sepolia at <code className="text-primary font-mono text-sm">0x76db8a0429d19e8440e3D290F79c0613834c72a1</code>. Users bet whether BTC, ETH, or SOL will close higher or lower than the opening price within a fixed time window (5 or 15 minutes). All pool totals are FHE-encrypted until CoFHE threshold decryption.
+            </p>
+            <div className="liquid-glass rounded-2xl p-6 mt-6">
+              <h4 className="text-sm font-semibold text-foreground mb-5">Round Lifecycle</h4>
+              <div className="space-y-3">
+                {[
+                  { step: "01", label: "createRound()", desc: "Keeper bot calls createRound(asset, intervalSeconds, startPrice, lockAt, settleAt, oracleRoundId). Only 300s (5m) or 900s (15m) intervals allowed. startPrice is uint64 with 8 decimal places (e.g. $80,500.99 → 8050099000000)." },
+                  { step: "02", label: "placeRoundBetSimple()", desc: "User calls placeRoundBetSimple(roundId, isUp) payable with ETH. The contract calls FHE.asEbool(isUp) to encrypt direction on-chain via trivial encryption — no client-side CoFHE SDK required. FHE.select() routes ETH into the encrypted UP or DOWN pool." },
+                  { step: "03", label: "lockRound()", desc: "At lockAt timestamp, keeper calls lockRound(roundId). Status: OPEN → LOCKED. No new bets accepted." },
+                  { step: "04", label: "resolveRound()", desc: "At settleAt, keeper fetches Binance price, signs the oracle hash using EIP-191 personal sign, and calls resolveRound(roundId, endPrice, observedAt, signature). Contract calls FHE.gte(encEndPrice, encStartPrice) to compute encrypted outcome. Status: LOCKED → RESOLVED." },
+                  { step: "05", label: "revealRoundPools()", desc: "CoFHE threshold-decrypts UP and DOWN pool totals. Keeper calls revealRoundPools(roundId, upPlaintext, upSig, downPlaintext, downSig) with CoFHE ECDSA signatures. Pools become public." },
+                  { step: "06", label: "claimRoundPayout()", desc: "Winner calls revealMyDirection(roundId, directionUp, sig) to prove their direction, then claimRoundPayout(roundId). Protocol takes 3% fee; 97% distributed proportionally to winning side." },
+                ].map((s) => (
+                  <div key={s.step} className="flex gap-4 items-start">
+                    <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center font-mono text-xs text-primary font-semibold">{s.step}</div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground mb-1 font-mono">{s.label}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="liquid-glass rounded-2xl p-6 mt-6">
+              <h4 className="text-sm font-semibold text-foreground mb-4">Oracle Signature Scheme</h4>
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">The keeper signs a hash of round parameters using EIP-191 personal sign. The contract verifies via ecrecover after adding the standard prefix.</p>
+              <div className="bg-card/50 rounded-xl p-4 font-mono text-xs text-primary/80 leading-relaxed">
+                <p>msgHash = keccak256(</p>
+                <p className="pl-4">&quot;PHANTOM_ROUND_ORACLE&quot; ||</p>
+                <p className="pl-4">block.chainid (421614) ||</p>
+                <p className="pl-4">address(PhantomRounds) ||</p>
+                <p className="pl-4">roundId || endPrice || observedAt</p>
+                <p>)</p>
+                <p className="mt-2 text-muted-foreground">// Keeper signs with: account.signMessage(&#123; message: &#123; raw: msgHash &#125; &#125;)</p>
+                <p className="text-muted-foreground">// NOT account.sign(&#123; hash: msgHash &#125;) — that skips the EIP-191 prefix</p>
+              </div>
+            </div>
+            <div className="liquid-glass rounded-2xl p-6 mt-6">
+              <h4 className="text-sm font-semibold text-foreground mb-4">RoundStatus Enum</h4>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {[
+                  { status: "NONE", desc: "Round does not exist" },
+                  { status: "OPEN", desc: "Bets accepted" },
+                  { status: "LOCKED", desc: "No new bets, awaiting settlement" },
+                  { status: "RESOLVED", desc: "Outcome set, claims open" },
+                  { status: "CANCELED", desc: "Refunds available" },
+                  { status: "PENDING_REVEAL", desc: "FHE.gte done, awaiting CoFHE decrypt" },
+                ].map((s) => (
+                  <div key={s.status} className="border border-border/30 rounded-xl p-3">
+                    <code className="text-primary font-mono text-xs">{s.status}</code>
+                    <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="liquid-glass rounded-2xl p-6 mt-6">
+              <h4 className="text-sm font-semibold text-foreground mb-4">8 Live Prediction Markets (PhantomBet)</h4>
+              <div className="space-y-2">
+                {[
+                  "Will Bitcoin reach $150,000 by December 2026?",
+                  "Will Ethereum break $5,000 in Q3 2026?",
+                  "Will the US Federal Reserve cut rates before August 2026?",
+                  "Will Solana flip Ethereum by market cap before end of 2026?",
+                  "Will DeFi total TVL exceed $200B by end of 2026?",
+                  "Will any AI token enter the crypto top 10 by market cap in Q3 2026?",
+                  "Will Bitcoin spot ETF daily inflows exceed $1B in a single day in 2026?",
+                  "Will Ethereum Layer 2 total TVL surpass $100B by September 2026?",
+                ].map((q, i) => (
+                  <div key={i} className="flex items-start gap-3 text-xs text-muted-foreground">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-mono text-[10px] flex items-center justify-center font-semibold">{i}</span>
+                    {q}
+                  </div>
+                ))}
+              </div>
             </div>
           </DocSection>
 
@@ -335,40 +416,40 @@ const Docs = () => {
               {[
                 {
                   wave: 1, name: "PhantomBet", status: "LIVE", tagline: "Binary Encrypted Prediction Markets",
-                  details: ["YES/NO markets on any real-world outcome", "FHE.select() for non-interactive encrypted bet routing", "Homomorphic pool accumulation via FHE.add()", "Threshold decryption at resolution via allowPublic()", "Deployed on Arbitrum Sepolia with full production frontend"],
+                  details: ["YES/NO markets on any real-world outcome", "FHE.select() for non-interactive encrypted bet routing", "Homomorphic pool accumulation via FHE.add() on euint64", "Threshold decryption at resolution via allowPublic()", "8 real markets live on-chain (BTC, ETH, DeFi, AI, L2 and more)"],
                 },
                 {
-                  wave: 2, name: "PhantomMulti", status: "Upcoming", tagline: "Multi-Outcome Encrypted Markets",
-                  details: ["210 outcome buckets per market beyond binary", "Encrypted outcome routing using FHE.select() trees", "Partial ACL revelation: winning bucket only at resolution", "Suited for elections, sports, and multi-scenario forecasting"],
+                  wave: 2, name: "PhantomToken ($PHTM)", status: "LIVE", tagline: "FHERC20 Encrypted Native Token",
+                  details: ["All balances stored as euint64 ciphertexts", "Transfer amounts are encrypted — no visible amounts", "ACL-gated: only sender, recipient, and authorized contracts can read", "Standard ERC20 interface with invisible internals"],
                 },
                 {
-                  wave: 3, name: "PhantomLiquidity", status: "Research", tagline: "Encrypted Automated Market Maker",
-                  details: ["AMM with invisible pool depth and price impact", "Encrypted LP positions and fee accrual ciphertexts", "FHE-native slippage checks on encrypted reserve handles", "No frontrunning  price curve computed on encrypted state"],
+                  wave: 3, name: "PhantomRounds", status: "LIVE", tagline: "Automated Price-Round Engine",
+                  details: ["5m and 15m price rounds for BTC/USD, ETH/USD, SOL/USD", "Keeper bot: create → lock → resolve → repeat (30s polling)", "Oracle: EIP-191 signed Binance price, ecrecover verified on-chain", "placeRoundBetSimple(bool): trivial on-chain FHE.asEbool() encryption", "CLI tool for manual lifecycle control — bot/cli.ts", "54 tests passing — deployed at 0x76db8a0429d19e8440e3D290F79c0613834c72a1"],
                 },
                 {
-                  wave: 4, name: "PhantomFutures", status: "Research", tagline: "Perpetual Prediction Markets",
-                  details: ["Continuous rolling markets with incremental resolution", "Encrypted funding rates accumulating homomorphically", "On-chain encrypted margin tracking per position", "Long/short encrypted exposure without visible direction"],
+                  wave: 4, name: "PhantomMulti", status: "Upcoming", tagline: "Multi-Outcome Encrypted Markets",
+                  details: ["Up to 210 encrypted outcome buckets per market", "Encrypted outcome routing using FHE.select() trees", "Partial ACL revelation: winning bucket only at resolution", "Suited for elections, sports, and multi-scenario forecasting"],
                 },
                 {
                   wave: 5, name: "PhantomOracle", status: "Research", tagline: "AI-Powered Encrypted Resolution",
                   details: ["AI model inference on FHE-encrypted oracle feeds", "Resolution logic provably derived from encrypted data", "Eliminates resolver trust: oracle resolves without raw data access", "Bridges coprocessor FHE and verifiable AI for trustless settlement"],
                 },
               ].map((w) => (
-                <div key={w.wave} className={`liquid-glass rounded-2xl p-6 transition-all ${w.wave === 1 ? "border border-primary/25 bg-primary/[0.02]" : "opacity-60"}`}>
+                <div key={w.wave} className={`liquid-glass rounded-2xl p-6 transition-all ${w.wave <= 3 ? "border border-primary/25 bg-primary/[0.02]" : "opacity-60"}`}>
                   <div className="flex items-start gap-4">
-                    <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-mono text-sm font-bold border ${w.wave === 1 ? "bg-primary/15 text-primary border-primary/25" : "bg-card text-muted-foreground border-border/20"}`}>
+                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-mono text-sm font-bold border ${w.wave <= 3 ? "bg-primary/15 text-primary border-primary/25" : "bg-card text-muted-foreground border-border/20"}`}>
                       {w.wave}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <h4 className="font-semibold text-foreground">{w.name}</h4>
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${w.wave === 1 ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground border border-border/30"}`}>{w.status}</span>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${w.wave <= 3 ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground border border-border/30"}`}>{w.status}</span>
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{w.tagline}</p>
                       <ul className="space-y-1.5">
                         {w.details.map((d) => (
                           <li key={d} className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${w.wave === 1 ? "text-primary" : "text-muted-foreground/40"}`} />
+                            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${w.wave <= 3 ? "text-primary" : "text-muted-foreground/40"}`} />
                             {d}
                           </li>
                         ))}
