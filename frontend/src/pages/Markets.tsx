@@ -139,7 +139,7 @@ const Markets = () => {
     return true;
   }), [markets, activeTab]);
 
-  const selected = markets.find((m) => m.id === selectedId) ?? filteredChain[0];
+  const selected = selectedId != null ? markets.find((m) => m.id === selectedId) : null;
   const hasOnChain = !isLoading && filteredChain.length > 0;
   const activeCount = markets.filter((m) => !m.resolved).length;
 
@@ -281,32 +281,39 @@ const Markets = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid lg:grid-cols-5 gap-6">
-                  {/* Chain market list */}
-                  <div className="lg:col-span-2 space-y-3">
+                <div className="space-y-6">
+                  {/* Card grid — 2 cols on md, 3 on xl */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filteredChain.map((market) => (
                       <ChainCard
                         key={String(market.id)}
                         market={market}
                         selected={selected?.id === market.id}
-                        onClick={() => setSelectedId(market.id)}
+                        onClick={() => setSelectedId((prev) => prev === market.id ? null : market.id)}
                       />
                     ))}
                   </div>
 
-                  {/* Detail panel */}
+                  {/* Inline detail panel — slides in below grid when a card is selected */}
                   {selected && (
-                    <motion.div variants={item} className="lg:col-span-3 space-y-4">
-                      <div className="liquid-glass rounded-2xl overflow-hidden">
-                        {/* Image banner in detail panel */}
+                    <motion.div
+                      key={String(selected.id)}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      className="grid lg:grid-cols-5 gap-6"
+                    >
+                      {/* Detail card */}
+                      <div className="lg:col-span-3 liquid-glass rounded-2xl overflow-hidden">
                         {getMarketMeta(selected.id)?.image && (
-                          <div className="relative h-40 overflow-hidden">
+                          <div className="relative h-44 overflow-hidden">
                             <img
                               src={getMarketMeta(selected.id)!.image}
                               alt={selected.question}
                               className="w-full h-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/25 to-transparent" />
                             <div className="absolute bottom-3 left-4 flex gap-2">
                               {getMarketMeta(selected.id)?.category && (
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${CATEGORY_COLORS[getMarketMeta(selected.id)!.category] ?? ""}`}>
@@ -317,21 +324,26 @@ const Markets = () => {
                                 On-chain · FHE · Arb Sepolia
                               </span>
                             </div>
+                            <button
+                              onClick={() => setSelectedId(null)}
+                              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-background/60 border border-border/30 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-base leading-none"
+                            >
+                              ×
+                            </button>
                           </div>
                         )}
-
                         <div className="p-6">
-                          <div className="flex items-start justify-between mb-5">
-                            <div>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1 pr-3">
                               {!getMarketMeta(selected.id)?.image && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 mb-2 inline-block">
                                   On-chain · FHE · Arb Sepolia
                                 </span>
                               )}
-                              <h2 className="text-lg font-semibold text-hero-heading">{selected.question}</h2>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {String(selected.bettorCount)} bettors</span>
-                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatDeadline(selected.deadline)}</span>
+                              <h2 className="text-base font-semibold text-hero-heading leading-snug">{selected.question}</h2>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1.5">
+                                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {String(selected.bettorCount)} bettors</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatDeadline(selected.deadline)}</span>
                               </div>
                             </div>
                             <span className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs uppercase ${!selected.resolved ? "bg-primary/10 text-primary border border-primary/20" : "bg-blue-500/10 text-blue-400"}`}>
@@ -339,27 +351,20 @@ const Markets = () => {
                             </span>
                           </div>
 
-                          {/* Live pool breakdown */}
                           {selected.poolsRevealed && selected.revealedTotalPool > 0n ? (
-                            <div className="mb-5 p-4 rounded-xl bg-white/[0.03] border border-border/20">
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-3">Live Pool</p>
-                              <div className="flex justify-between text-sm font-mono mb-2">
-                                <span className="text-emerald-400 font-semibold">
-                                  YES — {(Number(selected.revealedYesPool) / 1e9).toFixed(4)} ETH
-                                </span>
-                                <span className="text-red-400 font-semibold">
-                                  NO — {(Number(selected.revealedNoPool) / 1e9).toFixed(4)} ETH
-                                </span>
+                            <div className="mb-4 p-3 rounded-xl bg-white/[0.03] border border-border/20">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Live Pool</p>
+                              <div className="flex justify-between text-xs font-mono mb-1.5">
+                                <span className="text-emerald-400 font-semibold">YES — {(Number(selected.revealedYesPool) / 1e9).toFixed(4)} ETH</span>
+                                <span className="text-red-400 font-semibold">NO — {(Number(selected.revealedNoPool) / 1e9).toFixed(4)} ETH</span>
                               </div>
-                              <div className="h-2 rounded-full bg-red-400/20 overflow-hidden">
+                              <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-emerald-400/70 transition-all"
-                                  style={{ width: `${selected.revealedTotalPool > 0n ? Math.round(Number(selected.revealedYesPool) * 100 / Number(selected.revealedTotalPool)) : 50}%` }}
+                                  style={{ width: `${Math.round(Number(selected.revealedYesPool) * 100 / Number(selected.revealedTotalPool))}%` }}
                                 />
                               </div>
-                              <p className="text-[10px] font-mono text-muted-foreground mt-2 text-right">
-                                Total: {(Number(selected.revealedTotalPool) / 1e9).toFixed(4)} ETH
-                              </p>
+                              <p className="text-[10px] font-mono text-muted-foreground mt-1.5 text-right">Total: {(Number(selected.revealedTotalPool) / 1e9).toFixed(4)} ETH</p>
                             </div>
                           ) : !selected.resolved ? (
                             <p className="text-xs text-muted-foreground mb-4 flex items-center gap-2">
@@ -371,16 +376,19 @@ const Markets = () => {
                           {!selected.resolved ? (
                             <BetInterface marketId={selected.id} deadline={selected.deadline} resolved={selected.resolved} onSuccess={refetch} />
                           ) : (
-                            <div className="text-center py-6">
-                              <ShieldCheck className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                              <p className="text-lg font-semibold">{selected.poolsRevealed ? `Resolved: ${selected.outcome ? "YES ✓" : "NO ✓"}` : "Awaiting pool reveal"}</p>
+                            <div className="text-center py-5">
+                              <ShieldCheck className="w-7 h-7 text-blue-400 mx-auto mb-2" />
+                              <p className="font-semibold">{selected.poolsRevealed ? `Resolved: ${selected.outcome ? "YES ✓" : "NO ✓"}` : "Awaiting pool reveal"}</p>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <PositionPanel marketId={selected.id} hasBet={!!selected.hasBet} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onClaimed={refetch} />
-                      <ResolutionPanel marketId={selected.id} creator={selected.creator} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onResolved={refetch} />
+                      {/* Sidebar panels */}
+                      <div className="lg:col-span-2 space-y-4">
+                        <PositionPanel marketId={selected.id} hasBet={!!selected.hasBet} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onClaimed={refetch} />
+                        <ResolutionPanel marketId={selected.id} creator={selected.creator} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onResolved={refetch} />
+                      </div>
                     </motion.div>
                   )}
                 </div>

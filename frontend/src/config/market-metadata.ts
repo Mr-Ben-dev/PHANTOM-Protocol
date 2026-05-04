@@ -70,7 +70,7 @@ export const MARKET_METADATA: MarketMeta[] = [
   },
   // 7 — "Will Ethereum Layer 2 total TVL surpass $100B by September 2026?"
   {
-    image: "https://images.unsplash.com/photo-1640826514546-7b7e0ea83e5a?w=640&q=80",
+    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=640&q=80",
     category: "Crypto",
     tag: "L2",
   },
