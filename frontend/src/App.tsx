@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { wagmiConfig } from "@/config/wagmi";
 import Index from "./pages/Index.tsx";
 import Markets from "./pages/Markets.tsx";
+import Multi from "./pages/Multi.tsx";
 import Positions from "./pages/Positions.tsx";
 import Rounds from "./pages/Rounds.tsx";
 import Docs from "./pages/Docs.tsx";
@@ -24,6 +25,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/markets" element={<Markets />} />
+          <Route path="/multi" element={<Multi />} />
           <Route path="/rounds" element={<Rounds />} />
           <Route path="/positions" element={<Positions />} />
           <Route path="/docs" element={<Docs />} />

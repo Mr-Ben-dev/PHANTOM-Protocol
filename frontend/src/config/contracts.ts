@@ -23,6 +23,11 @@ export const PHANTOM_ROUNDS_ADDRESS =
   (import.meta.env.VITE_PHANTOM_ROUNDS_ADDRESS as `0x${string}`) ||
   "0x76db8a0429d19e8440e3D290F79c0613834c72a1";
 
+// Wave 4 — PhantomMulti (address populated after deployment)
+export const PHANTOM_MULTI_ADDRESS =
+  (import.meta.env.VITE_PHANTOM_MULTI_ADDRESS as `0x${string}`) ||
+  "0x0000000000000000000000000000000000000000";
+
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID ?? 421614);
@@ -40,6 +45,17 @@ export const IN_EUINT64_TYPE = {
 } as const;
 
 export const IN_EBOOL_TYPE = {
+  type: "tuple",
+  components: [
+    { name: "ctHash",       type: "uint256" },
+    { name: "securityZone", type: "uint8"   },
+    { name: "utype",        type: "uint8"   },
+    { name: "signature",    type: "bytes"   },
+  ],
+} as const;
+
+// Wave 4 — InEuint8 (encrypted outcome index for placeMultiBet)
+export const IN_EUINT8_TYPE = {
   type: "tuple",
   components: [
     { name: "ctHash",       type: "uint256" },
@@ -716,6 +732,328 @@ export const PHANTOM_ROUNDS_ABI = [
     inputs: [
       { name: "to",     type: "address", indexed: true  },
       { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+// ─── PhantomMulti ABI (Wave 4 — multi-outcome encrypted markets) ──────────
+
+export const PHANTOM_MULTI_ABI = [
+  // ── View: market info ──────────────────────────────────────────
+  {
+    name: "getMultiMarketCount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "marketCount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getMultiMarketInfo",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [
+      { name: "question",       type: "string"  },
+      { name: "outcomeCount",   type: "uint8"   },
+      { name: "deadline",       type: "uint256" },
+      { name: "resolutionTime", type: "uint256" },
+      { name: "winningOutcome", type: "uint8"   },
+      { name: "resolved",       type: "bool"    },
+      { name: "poolsRevealed",  type: "bool"    },
+      { name: "canceled",       type: "bool"    },
+      { name: "creator",        type: "address" },
+      { name: "status",         type: "uint8"   },
+    ],
+  },
+  {
+    name: "getRevealedPools",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [
+      { name: "pools",     type: "uint64[8]" },
+      { name: "totalPool", type: "uint64"    },
+    ],
+  },
+  {
+    name: "getOutcomeLabel",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId",   type: "uint256" },
+      { name: "_outcomeIdx", type: "uint8"   },
+    ],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    name: "getOutcomeLabels",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [{ name: "", type: "string[8]" }],
+  },
+  {
+    // Returns euint64 handle — declared as uint256 for viem/bigint compat
+    name: "getMyMultiBet",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns euint8 handle — declared as uint256 for viem/bigint compat
+    name: "getMyBetOutcome",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Returns euint64 pool handle for a specific outcome
+    name: "getEncPool",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId",   type: "uint256" },
+      { name: "_outcomeIdx", type: "uint8"   },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // AUDITOR-only: encrypted bettor count
+    name: "getEncBettorCount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "hasBet",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "hasClaimed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "betRevealed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "revealedBets",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint64" }],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "roles",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+  {
+    name: "MAX_OUTCOMES",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+  // ── Writes: lifecycle ─────────────────────────────────────────
+  {
+    name: "createMultiMarket",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_question",       type: "string"   },
+      { name: "_labels",         type: "string[]" },
+      { name: "_deadline",       type: "uint256"  },
+      { name: "_resolutionTime", type: "uint256"  },
+    ],
+    outputs: [{ name: "marketId", type: "uint256" }],
+  },
+  {
+    // Simple path: outcome index is plaintext, amount is encrypted
+    name: "placeMultiBetSimple",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",   type: "uint256"     },
+      { name: "_outcomeIdx", type: "uint8"       },
+      { name: "_encAmount",  ...IN_EUINT64_TYPE  },
+    ],
+    outputs: [],
+  },
+  {
+    // Private path: both outcome index AND amount are encrypted
+    name: "placeMultiBet",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",       type: "uint256"    },
+      { name: "_encOutcomeIdx",  ...IN_EUINT8_TYPE  },
+      { name: "_encAmount",      ...IN_EUINT64_TYPE },
+    ],
+    outputs: [],
+  },
+  {
+    name: "resolveMultiMarket",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",       type: "uint256" },
+      { name: "_winningOutcome", type: "uint8"   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revealMultiPools",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",   type: "uint256"    },
+      { name: "_ctHashes",   type: "uint256[]"  },   // euint64 handles as uint256
+      { name: "_plaintexts", type: "uint64[]"   },
+      { name: "_signatures", type: "bytes[]"    },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revealMyBet",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",  type: "uint256" },
+      { name: "_ctHash",    type: "uint256" },   // euint64 handle as uint256
+      { name: "_betAmount", type: "uint64"  },
+      { name: "_signature", type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "claimMultiPayout",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "cancelMultiMarket",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_reason",   type: "string"  },
+    ],
+    outputs: [],
+  },
+  {
+    name: "grantRole",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_user", type: "address" },
+      { name: "_role", type: "uint8"   },
+    ],
+    outputs: [],
+  },
+  // ── Events ─────────────────────────────────────────────────────
+  {
+    name: "MultiMarketCreated",
+    type: "event",
+    inputs: [
+      { name: "marketId",       type: "uint256", indexed: true  },
+      { name: "creator",        type: "address", indexed: true  },
+      { name: "question",       type: "string",  indexed: false },
+      { name: "outcomeCount",   type: "uint8",   indexed: false },
+      { name: "deadline",       type: "uint256", indexed: false },
+      { name: "resolutionTime", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "MultiBetPlaced",
+    type: "event",
+    inputs: [
+      { name: "marketId", type: "uint256", indexed: true },
+      { name: "bettor",   type: "address", indexed: true },
+    ],
+  },
+  {
+    name: "MultiMarketResolved",
+    type: "event",
+    inputs: [
+      { name: "marketId",       type: "uint256", indexed: true  },
+      { name: "winningOutcome", type: "uint8",   indexed: false },
+    ],
+  },
+  {
+    name: "MultiPoolsRevealed",
+    type: "event",
+    inputs: [
+      { name: "marketId",  type: "uint256", indexed: true  },
+      { name: "totalPool", type: "uint64",  indexed: false },
+    ],
+  },
+  {
+    name: "MultiPayoutClaimed",
+    type: "event",
+    inputs: [
+      { name: "marketId", type: "uint256", indexed: true  },
+      { name: "bettor",   type: "address", indexed: true  },
+      { name: "amount",   type: "uint64",  indexed: false },
+    ],
+  },
+  {
+    name: "MultiBetRevealed",
+    type: "event",
+    inputs: [
+      { name: "marketId", type: "uint256", indexed: true  },
+      { name: "bettor",   type: "address", indexed: true  },
+      { name: "amount",   type: "uint64",  indexed: false },
+    ],
+  },
+  {
+    name: "MultiMarketCanceled",
+    type: "event",
+    inputs: [
+      { name: "marketId", type: "uint256", indexed: true  },
+      { name: "reason",   type: "string",  indexed: false },
     ],
   },
 ] as const;

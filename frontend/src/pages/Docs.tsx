@@ -427,29 +427,29 @@ const Docs = () => {
                   details: ["5m and 15m price rounds for BTC/USD, ETH/USD, SOL/USD", "Keeper bot: create → lock → resolve → repeat (30s polling)", "Oracle: EIP-191 signed Binance price, ecrecover verified on-chain", "placeRoundBetSimple(bool): trivial on-chain FHE.asEbool() encryption", "CLI tool for manual lifecycle control — bot/cli.ts", "54 tests passing — deployed at 0x76db8a0429d19e8440e3D290F79c0613834c72a1"],
                 },
                 {
-                  wave: 4, name: "PhantomMulti", status: "Upcoming", tagline: "Multi-Outcome Encrypted Markets",
-                  details: ["Up to 210 encrypted outcome buckets per market", "Encrypted outcome routing using FHE.select() trees", "Partial ACL revelation: winning bucket only at resolution", "Suited for elections, sports, and multi-scenario forecasting"],
+                  wave: 4, name: "PhantomMulti", status: "LIVE", tagline: "Multi-Outcome Encrypted Markets",
+                  details: ["Up to 8 outcomes per market (2–8 configurable)", "All pool amounts encrypted with CoFHE euint64 — sealed until resolution", "placeMultiBetSimple: outcome index plaintext, amount FHE-encrypted", "placeMultiBet: both outcome index (InEuint8) and amount (InEuint64) fully encrypted", "O(MAX_OUTCOMES) FHE.select() routing loop — no branching on plaintext", "Resolver calls resolveMultiMarket then revealMultiPools (on-chain CoFHE publishDecryptResult)", "3% protocol fee on winning payouts; revealMyBet required before claim", "Deployed via deployPhantomMulti.ts — Arbitrum Sepolia"],
                 },
                 {
                   wave: 5, name: "PhantomOracle", status: "Research", tagline: "AI-Powered Encrypted Resolution",
                   details: ["AI model inference on FHE-encrypted oracle feeds", "Resolution logic provably derived from encrypted data", "Eliminates resolver trust: oracle resolves without raw data access", "Bridges coprocessor FHE and verifiable AI for trustless settlement"],
                 },
               ].map((w) => (
-                <div key={w.wave} className={`liquid-glass rounded-2xl p-6 transition-all ${w.wave <= 3 ? "border border-primary/25 bg-primary/[0.02]" : "opacity-60"}`}>
+                <div key={w.wave} className={`liquid-glass rounded-2xl p-6 transition-all ${w.wave <= 4 ? "border border-primary/25 bg-primary/[0.02]" : "opacity-60"}`}>
                   <div className="flex items-start gap-4">
-                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-mono text-sm font-bold border ${w.wave <= 3 ? "bg-primary/15 text-primary border-primary/25" : "bg-card text-muted-foreground border-border/20"}`}>
+                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-mono text-sm font-bold border ${w.wave <= 4 ? "bg-primary/15 text-primary border-primary/25" : "bg-card text-muted-foreground border-border/20"}`}>
                       {w.wave}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <h4 className="font-semibold text-foreground">{w.name}</h4>
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${w.wave <= 3 ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground border border-border/30"}`}>{w.status}</span>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${w.wave <= 4 ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground border border-border/30"}`}>{w.status}</span>
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{w.tagline}</p>
                       <ul className="space-y-1.5">
                         {w.details.map((d) => (
                           <li key={d} className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${w.wave <= 3 ? "text-primary" : "text-muted-foreground/40"}`} />
+                            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${w.wave <= 4 ? "text-primary" : "text-muted-foreground/40"}`} />
                             {d}
                           </li>
                         ))}
