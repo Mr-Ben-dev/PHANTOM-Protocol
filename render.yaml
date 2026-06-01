@@ -1,0 +1,32 @@
+# PHANTOM Keeper — Render Blueprint
+#
+# Free tier: MUST use type: web + plan: free
+# (Render Blueprint spec: plan "free" is NOT available for background workers)
+#
+# Deploy: Dashboard → New → Blueprint → connect GitHub repo → apply
+# Requires this file at repo root AND committed to git (not gitignored).
+
+services:
+  - type: web
+    name: phantom-keeper
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: bot
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: PRIVATE_KEY
+        sync: false
+      - key: RPC_URL
+        value: https://sepolia-rollup.arbitrum.io/rpc
+      # Optional override; default fallback is Alchemy (see bot/rpc.ts)
+      - key: RPC_URL_FALLBACK
+        sync: false
+      - key: PHANTOM_ROUNDS_ADDRESS
+        value: 0x76db8a0429d19e8440e3D290F79c0613834c72a1
+      - key: POLL_INTERVAL_SECONDS
+        value: "30"
+      # PORT is injected automatically by Render for web services.
+      # keeper.ts reads process.env.PORT (see bot/keeper.ts line 32).
