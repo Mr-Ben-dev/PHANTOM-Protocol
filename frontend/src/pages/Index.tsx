@@ -6,7 +6,7 @@ import FeaturesSection from "@/components/landing/FeaturesSection";
 import NumbersSection from "@/components/landing/NumbersSection";
 import TechStackSection from "@/components/landing/TechStackSection";
 import RoadmapSection from "@/components/landing/RoadmapSection";
-import TestimonialsSection from "@/components/landing/TestimonialsSection";
+import LiveProtocolSection from "@/components/landing/LiveProtocolSection";
 import CTAFooterWrapper from "@/components/landing/CTAFooterWrapper";
 
 const Index = () => {
@@ -20,7 +20,7 @@ const Index = () => {
       <NumbersSection />
       <TechStackSection />
       <RoadmapSection />
-      <TestimonialsSection />
+      <LiveProtocolSection />
       <CTAFooterWrapper />
     </div>
   );

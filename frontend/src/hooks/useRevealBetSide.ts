@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { PHANTOM_BET_ABI, PHANTOM_BET_ADDRESS } from "@/config/contracts";
-import { getCofheClient } from "@/lib/fhe";
+import { decryptTxBool } from "@/lib/cofheDecrypt";
 import { usePhantomBet } from "./usePhantomBet";
 
 export interface RevealedSide {
@@ -29,17 +29,8 @@ export function useRevealBetSide(marketId: bigint) {
     setRevealing(true);
     setError(null);
     try {
-      const client = getCofheClient();
-      const decryptResult = (await client
-        .decryptForView(sideCtHash as never, 0)
-        .execute()) as boolean | { value: boolean; signature: `0x${string}` };
-
-      const isYes =
-        typeof decryptResult === "boolean" ? decryptResult : decryptResult.value;
-      const sig: `0x${string}` =
-        typeof decryptResult === "boolean" ? "0x" : decryptResult.signature;
-
-      await revealMySide(marketId, isYes, sig);
+      const { value: isYes, signature } = await decryptTxBool(sideCtHash as bigint);
+      await revealMySide(marketId, isYes, signature);
       setResult({ isYes });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

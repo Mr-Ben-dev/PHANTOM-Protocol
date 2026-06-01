@@ -44,8 +44,8 @@ const NumbersSection = () => {
             <div className="text-muted-foreground mt-2">Live contracts on-chain</div>
           </div>
           <div className="text-center py-8 md:py-0 md:px-12 border-t md:border-t-0 md:border-r border-border/50">
-            <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">8</div>
-            <div className="text-muted-foreground mt-2">Real prediction markets seeded</div>
+            <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">10+</div>
+            <div className="text-muted-foreground mt-2">On-chain prediction markets</div>
           </div>
           <div className="text-center pt-8 md:pt-0 md:pl-12 border-t md:border-t-0 border-border/50">
             <div className="text-5xl sm:text-6xl font-semibold text-hero-heading tracking-tight font-mono">100%</div>

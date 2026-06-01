@@ -167,6 +167,16 @@ export const PHANTOM_BET_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
   {
+    name: "revealedSides",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
     name: "ethStakes",
     type: "function",
     stateMutability: "view",

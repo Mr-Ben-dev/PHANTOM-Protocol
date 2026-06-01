@@ -2,7 +2,8 @@ import { useCallback, useState } from "react";
 import { useAccount } from "wagmi";
 import { useReadContract } from "wagmi";
 import { PHANTOM_BET_ADDRESS, PHANTOM_BET_ABI } from "@/config/contracts";
-import { getCofheClient } from "@/lib/fhe";
+import { ensureCofhePermit } from "@/lib/fhe";
+import { decryptViewBool, decryptViewUint64 } from "@/lib/cofheDecrypt";
 
 export interface DecryptedPosition {
   amount: bigint;
@@ -48,15 +49,11 @@ export function useDecryptPosition(marketId: bigint) {
     setDecrypting(true);
     setError(null);
     try {
-      const client = getCofheClient();
-
-      // FheTypes enum: Uint64 = 5, Bool = 0 — use numeric literals so we
-      // don't need an import that may change across SDK versions.
+      await ensureCofhePermit();
       const [amount, isYes] = await Promise.all([
-        client.decryptForView(amountCtHash as never, 5 /* Uint64 */).execute() as Promise<bigint>,
-        client.decryptForView(sideCtHash as never, 0 /* Bool */).execute() as Promise<boolean>,
+        decryptViewUint64(amountCtHash as bigint),
+        decryptViewBool(sideCtHash as bigint),
       ]);
-
       setResult({ amount, isYes });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -65,5 +62,10 @@ export function useDecryptPosition(marketId: bigint) {
     }
   }, [amountCtHash, sideCtHash]);
 
-  return { decrypt, result, isDecrypting, error };
+  const hide = useCallback(() => {
+    setResult(null);
+    setError(null);
+  }, []);
+
+  return { decrypt, hide, result, isDecrypting, error };
 }

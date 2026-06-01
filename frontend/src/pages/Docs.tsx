@@ -38,16 +38,16 @@ const Docs = () => {
         >
           <motion.div variants={item} className="liquid-glass rounded-full px-4 py-1.5 mb-6 inline-flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Protocol Reference</span>
-            <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full">Wave 3 — Live</span>
+            <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full">Live · Arb Sepolia</span>
           </motion.div>
           <motion.h1 variants={item} className="text-4xl sm:text-5xl font-semibold text-hero-heading leading-tight mb-4">
             PHANTOM Protocol Docs
           </motion.h1>
           <motion.p variants={item} className="text-lg text-hero-sub max-w-2xl leading-relaxed">
-            The complete technical reference for PHANTOM’s encrypted prediction engine — from FHE fundamentals and contract architecture to Wave 1–3 specifications, PhantomRounds, and the full five-wave roadmap.
+            Technical reference for PHANTOM on Fhenix CoFHE — encrypted binary markets, automated price rounds, permits, payouts, and deployed contract addresses on Arbitrum Sepolia.
           </motion.p>
           <motion.div variants={item} className="flex flex-wrap gap-3 mt-6">
-            {["Overview", "FHE Engine", "Contracts", "Wave 3 Rounds", "ACL System", "Integration", "Roadmap"].map((sec) => (
+            {["Overview", "FHE Engine", "Contracts", "Price Rounds", "ACL System", "Integration", "Modules"].map((sec) => (
               <span key={sec} className="liquid-glass rounded-full px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">{sec}</span>
             ))}
           </motion.div>
@@ -145,9 +145,9 @@ const Docs = () => {
           </DocSection>
 
           {/* WAVE 1 CONTRACTS */}
-          <DocSection icon={FileCode} badge="Waves 1–3" title="Smart Contract Architecture" id="contracts">
+          <DocSection icon={FileCode} badge="Contracts" title="Smart Contract Architecture" id="contracts">
             <p className="text-foreground/80 leading-relaxed mb-6">
-              Wave 1 ships three Solidity 0.8.25 contracts compiled with <code className="text-primary font-mono text-sm">viaIR: true</code> and <code className="text-primary font-mono text-sm">evmVersion: cancun</code>  required for the full Fhenix CoFHE interface. All modules inherit from PhantomACL.
+              PHANTOM ships Solidity 0.8.25 contracts compiled with <code className="text-primary font-mono text-sm">viaIR: true</code> and <code className="text-primary font-mono text-sm">evmVersion: cancun</code> for the Fhenix CoFHE interface. Core modules share PhantomACL for ciphertext permissions.
             </p>
             <div className="liquid-glass rounded-2xl p-6 mb-6">
               <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -155,9 +155,10 @@ const Docs = () => {
               </h4>
               <div className="space-y-3">
                 {[
-                  { name: "PhantomBet", addr: "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228", label: "Wave 1 — Binary prediction market" },
-                  { name: "PhantomToken ($PHTM)", addr: "0x78AF03022b1cD35e75642Ac2A043a6d2cE472228", label: "Wave 2 — FHERC20 encrypted native token" },
-                  { name: "PhantomRounds", addr: "0x76db8a0429d19e8440e3D290F79c0613834c72a1", label: "Wave 3 — Automated price-round engine" },
+                  { name: "PhantomBet", addr: "0x561428264991044f47705C92CE482E37C9cD71b7", label: "Binary YES/NO markets (v2)" },
+                  { name: "PhantomMulti", addr: "0x4923426E703530cc4C9467F9B47AF3C85599ebaF", label: "Multi-outcome markets (v2)" },
+                  { name: "PhantomRounds", addr: "0x76db8a0429d19e8440e3D290F79c0613834c72a1", label: "BTC/ETH/SOL price rounds + keeper" },
+                  { name: "PhantomToken ($PHTM)", addr: "0x78AF03022b1cD35e75642Ac2A043a6d2cE472228", label: "FHERC20 encrypted token" },
                 ].map((c) => (
                   <div key={c.name} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                     <div className="shrink-0">
@@ -203,7 +204,7 @@ const Docs = () => {
             <div className="liquid-glass rounded-2xl p-6 mb-4">
               <div className="flex items-center gap-3 mb-4">
                 <code className="font-mono text-primary font-semibold text-sm">PhantomBet.sol</code>
-                <span className="text-[10px] font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">Wave 1  Core</span>
+                <span className="text-[10px] font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">Core</span>
               </div>
               <p className="text-sm text-muted-foreground mb-5">Binary YES/NO prediction market with fully encrypted bet routing, homomorphic pool aggregation, and threshold-mediated payout settlement.</p>
               <div className="space-y-3">
@@ -237,7 +238,7 @@ const Docs = () => {
           </DocSection>
 
           {/* WAVE 3 — PHANTOMROUNDS */}
-          <DocSection icon={Zap} badge="Wave 3" title="PhantomRounds — Encrypted Price-Round Engine" id="wave3">
+          <DocSection icon={Zap} badge="Price rounds" title="PhantomRounds — Encrypted price engine" id="rounds">
             <p className="text-foreground/80 leading-relaxed">
               PhantomRounds is PHANTOM’s automated price-round market engine, live on Arbitrum Sepolia at <code className="text-primary font-mono text-sm">0x76db8a0429d19e8440e3D290F79c0613834c72a1</code>. Users bet whether BTC, ETH, or SOL will close higher or lower than the opening price within a fixed time window (5 or 15 minutes). All pool totals are FHE-encrypted until CoFHE threshold decryption.
             </p>
@@ -250,7 +251,7 @@ const Docs = () => {
                   { step: "03", label: "lockRound()", desc: "At lockAt timestamp, keeper calls lockRound(roundId). Status: OPEN → LOCKED. No new bets accepted." },
                   { step: "04", label: "resolveRound()", desc: "At settleAt, keeper fetches Binance price, signs the oracle hash using EIP-191 personal sign, and calls resolveRound(roundId, endPrice, observedAt, signature). Contract calls FHE.gte(encEndPrice, encStartPrice) to compute encrypted outcome. Status: LOCKED → RESOLVED." },
                   { step: "05", label: "revealRoundPools()", desc: "CoFHE threshold-decrypts UP and DOWN pool totals. Keeper calls revealRoundPools(roundId, upPlaintext, upSig, downPlaintext, downSig) with CoFHE ECDSA signatures. Pools become public." },
-                  { step: "06", label: "claimRoundPayout()", desc: "Winner calls revealMyDirection(roundId, directionUp, sig) to prove their direction, then claimRoundPayout(roundId). Protocol takes 3% fee; 97% distributed proportionally to winning side." },
+                  { step: "06", label: "revealMyDirection() + claimRoundPayout()", desc: "Winner uses decryptForTx (CoFHE permit) to get direction + threshold signature, submits revealMyDirection, then claimRoundPayout. Empty sig causes revert — use @cofhe/sdk decryptForTx, not view-only decrypt." },
                 ].map((s) => (
                   <div key={s.step} className="flex gap-4 items-start">
                     <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center font-mono text-xs text-primary font-semibold">{s.step}</div>
@@ -372,7 +373,7 @@ const Docs = () => {
                 { step: "1", title: "Connect Your Wallet", desc: "Click 'Connect Wallet' in the top navigation. PHANTOM supports MetaMask and any EIP-1193 injected provider. You'll be prompted to switch to Arbitrum Sepolia (Chain ID 421614) if on another network." },
                 { step: "2", title: "Initialize FHE", desc: "On connection, the app automatically initializes the CoFHE client  loading the FHE public key for Arbitrum Sepolia and setting up the in-browser encryption engine. Wait for the 'FHE Ready' indicator before placing bets." },
                 { step: "3", title: "Browse Markets & Bet", desc: "Navigate to /markets, select a market, enter an amount, choose YES or NO. Your input is encrypted client-side with @cofhe/sdk before the transaction is submitted. The confirmation displays only the ciphertext hash  never plaintext." },
-                { step: "4", title: "View & Decrypt Positions", desc: "Navigate to /positions to see all your bets. Click 'Decrypt' to sign an EIP-712 permit and reveal your own bet amount via CoFHE threshold decryption. The process takes ~30 seconds for CoFHE nodes to respond." },
+                { step: "4", title: "View & claim", desc: "On /positions: view sealed side with decryptForView (permit, no gas). After resolution, reveal on-chain with decryptForTx + signature, then claim payout from the market pool." },
               ].map((s) => (
                 <div key={s.step} className="liquid-glass rounded-2xl p-6">
                   <div className="flex gap-4 items-start">
@@ -408,54 +409,43 @@ const Docs = () => {
           </DocSection>
 
           {/* ROADMAP */}
-          <DocSection icon={GitBranch} badge="Roadmap" title="Five Waves of Encrypted Intelligence" id="roadmap">
+          <DocSection icon={GitBranch} badge="Modules" title="Protocol modules" id="roadmap">
             <p className="text-foreground/80 leading-relaxed mb-8">
-              PHANTOM is architected in five sequential waves, each introducing a new encrypted financial primitive on the same FHE + ACL foundation. Every wave is a separate protocol module with independent contracts and SDKs.
+              PHANTOM is a modular privacy prediction stack on Fhenix CoFHE. Each contract is independent; the app currently highlights PhantomBet markets and PhantomRounds with a hosted keeper.
             </p>
             <div className="space-y-4">
               {[
                 {
-                  wave: 1, name: "PhantomBet", status: "LIVE", tagline: "Binary Encrypted Prediction Markets",
-                  details: ["YES/NO markets on any real-world outcome", "FHE.select() for non-interactive encrypted bet routing", "Homomorphic pool accumulation via FHE.add() on euint64", "Threshold decryption at resolution via allowPublic()", "8 real markets live on-chain (BTC, ETH, DeFi, AI, L2 and more)"],
+                  name: "PhantomBet", status: "LIVE", tagline: "Binary encrypted prediction markets",
+                  details: ["YES/NO on real-world questions", "Encrypted direction via FHE.select into pools", "View side: decryptForView + EIP-712 permit", "Claim: revealMySide with decryptForTx signature", "v2: 0x561428264991044f47705C92CE482E37C9cD71b7"],
                 },
                 {
-                  wave: 2, name: "PhantomToken ($PHTM)", status: "LIVE", tagline: "FHERC20 Encrypted Native Token",
-                  details: ["All balances stored as euint64 ciphertexts", "Transfer amounts are encrypted — no visible amounts", "ACL-gated: only sender, recipient, and authorized contracts can read", "Standard ERC20 interface with invisible internals"],
+                  name: "PhantomRounds", status: "LIVE", tagline: "Automated BTC / ETH / SOL rounds",
+                  details: ["5m rounds, keeper at phantom-keeper.onrender.com", "Oracle-signed settlement prices", "Pool reveal via keeper CoFHE decrypt", "User reveal: decryptForTx + revealMyDirection", "0x76db8a0429d19e8440e3D290F79c0613834c72a1"],
                 },
                 {
-                  wave: 3, name: "PhantomRounds", status: "LIVE", tagline: "Automated Price-Round Engine",
-                  details: ["5m and 15m price rounds for BTC/USD, ETH/USD, SOL/USD", "Keeper bot: create → lock → resolve → repeat (30s polling)", "Oracle: EIP-191 signed Binance price, ecrecover verified on-chain", "placeRoundBetSimple(bool): trivial on-chain FHE.asEbool() encryption", "CLI tool for manual lifecycle control — bot/cli.ts", "54 tests passing — deployed at 0x76db8a0429d19e8440e3D290F79c0613834c72a1"],
+                  name: "PhantomMulti", status: "DEPLOYED", tagline: "Multi-outcome markets",
+                  details: ["2–8 encrypted outcome pools", "Contract v2 on Sepolia", "Primary UI routes to /markets and /rounds"],
                 },
                 {
-                  wave: 4, name: "PhantomMulti", status: "LIVE", tagline: "Multi-Outcome Encrypted Markets",
-                  details: ["Up to 8 outcomes per market (2–8 configurable)", "All pool amounts encrypted with CoFHE euint64 — sealed until resolution", "placeMultiBetSimple: outcome index plaintext, amount FHE-encrypted", "placeMultiBet: both outcome index (InEuint8) and amount (InEuint64) fully encrypted", "O(MAX_OUTCOMES) FHE.select() routing loop — no branching on plaintext", "Resolver calls resolveMultiMarket then revealMultiPools (on-chain CoFHE publishDecryptResult)", "3% protocol fee on winning payouts; revealMyBet required before claim", "Deployed via deployPhantomMulti.ts — Arbitrum Sepolia"],
-                },
-                {
-                  wave: 5, name: "PhantomOracle", status: "Research", tagline: "AI-Powered Encrypted Resolution",
-                  details: ["AI model inference on FHE-encrypted oracle feeds", "Resolution logic provably derived from encrypted data", "Eliminates resolver trust: oracle resolves without raw data access", "Bridges coprocessor FHE and verifiable AI for trustless settlement"],
+                  name: "PhantomOracle", status: "Research", tagline: "Encrypted resolution",
+                  details: ["Future: inference on encrypted feeds without leaking inputs"],
                 },
               ].map((w) => (
-                <div key={w.wave} className={`liquid-glass rounded-2xl p-6 transition-all ${w.wave <= 4 ? "border border-primary/25 bg-primary/[0.02]" : "opacity-60"}`}>
-                  <div className="flex items-start gap-4">
-                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-mono text-sm font-bold border ${w.wave <= 4 ? "bg-primary/15 text-primary border-primary/25" : "bg-card text-muted-foreground border-border/20"}`}>
-                      {w.wave}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-foreground">{w.name}</h4>
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${w.wave <= 4 ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground border border-border/30"}`}>{w.status}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">{w.tagline}</p>
-                      <ul className="space-y-1.5">
-                        {w.details.map((d) => (
-                          <li key={d} className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${w.wave <= 4 ? "text-primary" : "text-muted-foreground/40"}`} />
-                            {d}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                <div key={w.name} className={`liquid-glass rounded-2xl p-6 ${w.status === "LIVE" ? "border border-primary/25" : ""}`}>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h4 className="font-semibold text-foreground">{w.name}</h4>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary">{w.status}</span>
                   </div>
+                  <p className="text-sm text-muted-foreground mb-3">{w.tagline}</p>
+                  <ul className="space-y-1.5">
+                    {w.details.map((d) => (
+                      <li key={d} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -465,7 +455,7 @@ const Docs = () => {
           <DocSection icon={ExternalLink} badge="Links" title="Resources & References" id="resources">
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { name: "Fhenix CoFHE Documentation", desc: "FHE coprocessor reference, SDK guide, and contract API", href: "https://docs.fhenix.zone" },
+                { name: "Fhenix CoFHE Documentation", desc: "FHE coprocessor reference, SDK guide, permits, and contract API", href: "https://cofhe-docs.fhenix.zone/" },
                 { name: "Arbitrum Sepolia Explorer", desc: "View PHANTOM deployed contracts on-chain", href: "https://sepolia.arbiscan.io" },
                 { name: "GitHub  PHANTOM Protocol", desc: "Source code: contracts, tests, and frontend", href: "https://github.com/Mr-Ben-dev/PHANTOM-Protocol" },
                 { name: "@cofhe/sdk Reference", desc: "Client-side FHE encryption SDK documentation", href: "https://docs.fhenix.zone/docs/devdocs/CoFHE/sdk" },

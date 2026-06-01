@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Zap, ShieldCheck, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type Round } from "@/hooks/useRounds";
 import { useDecryptRoundPools } from "@/hooks/useDecryptRoundPools";
 import { useRevealRoundDirection } from "@/hooks/useRevealRoundDirection";
 import { usePhantomRounds } from "@/hooks/usePhantomRounds";
+import { ClaimStepper } from "@/components/rounds/ClaimStepper";
 
 interface RoundPositionActionsProps {
   round: Round;
@@ -12,6 +13,8 @@ interface RoundPositionActionsProps {
   onBusyChange: (busy: boolean) => void;
   onMessage: (msg: string) => void;
   onDone: () => void;
+  /** Full-width layout for Positions / resolved cards */
+  stacked?: boolean;
 }
 
 export function RoundPositionActions({
@@ -20,6 +23,7 @@ export function RoundPositionActions({
   onBusyChange,
   onMessage,
   onDone,
+  stacked = false,
 }: RoundPositionActionsProps) {
   const { claimRoundPayout, refundCanceledRound } = usePhantomRounds();
   const { reveal: revealPools, isRevealing: poolsRevealing, error: poolsError } = useDecryptRoundPools(round.id);
@@ -86,13 +90,23 @@ export function RoundPositionActions({
     return <span className="text-xs text-emerald-400 font-mono">CLAIMED</span>;
   }
 
+  const wrap = (content: ReactNode) =>
+    stacked ? (
+      <div className="space-y-4 w-full">
+        <ClaimStepper round={round} directionRevealed={directionRevealed} />
+        {content}
+      </div>
+    ) : (
+      content
+    );
+
   if (!round.poolsRevealed) {
-    return (
-      <div className="flex flex-col gap-1">
+    return wrap(
+      <div className="flex flex-col gap-1 w-full">
         <Button
           variant="outline"
-          size="sm"
-          className="gap-2"
+          size={stacked ? "default" : "sm"}
+          className={`gap-2 ${stacked ? "w-full" : ""}`}
           disabled={busy || poolsRevealing}
           onClick={async () => {
             onBusyChange(true);
@@ -110,46 +124,54 @@ export function RoundPositionActions({
         >
           <Eye className="w-4 h-4" /> {poolsRevealing ? "Revealing pools…" : "Reveal Pools"}
         </Button>
-        <span className="text-[10px] text-muted-foreground font-mono">Keeper auto-reveals — use if stuck</span>
-      </div>
+        <span className="text-[10px] text-muted-foreground font-mono">Keeper auto-reveals after resolve — use if stuck</span>
+      </div>,
     );
   }
 
   if (!directionRevealed) {
-    return (
-      <div className="flex flex-col gap-1">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          disabled={busy || dirRevealing}
-          onClick={async () => {
-            onBusyChange(true);
-            onMessage("");
-            try {
-              await revealDirection();
-              onMessage(`Direction revealed for round #${round.id}`);
-              onDone();
-            } catch {
-              onMessage(dirError ?? "Direction reveal failed.");
-            } finally {
-              onBusyChange(false);
-            }
-          }}
-        >
-          <Eye className="w-4 h-4" /> {dirRevealing ? "Revealing…" : "Reveal Direction"}
-        </Button>
-      </div>
+    return wrap(
+      <Button
+        variant={stacked ? "hero" : "outline"}
+        size={stacked ? "default" : "sm"}
+        className={`gap-2 ${stacked ? "w-full" : ""}`}
+        disabled={busy || dirRevealing}
+        onClick={async () => {
+          onBusyChange(true);
+          onMessage("");
+          try {
+            await revealDirection();
+            onMessage(`Direction revealed for round #${round.id}`);
+            onDone();
+          } catch {
+            onMessage(dirError ?? "Direction reveal failed.");
+          } finally {
+            onBusyChange(false);
+          }
+        }}
+      >
+        <Eye className="w-4 h-4" /> {dirRevealing ? "CoFHE sign + on-chain reveal…" : "Reveal direction on-chain (claim)"}
+      </Button>,
     );
   }
 
   if (!isWinner) {
-    return <span className="text-xs text-muted-foreground font-mono">Settled — not on winning side</span>;
+    return wrap(
+      <span className="text-xs text-muted-foreground font-mono block">
+        Settled {round.outcomeUp ? "UP ↑" : "DOWN ↓"} — your revealed side did not win
+      </span>,
+    );
   }
 
-  return (
-    <Button variant="hero" size="sm" className="gap-2" disabled={busy || claiming} onClick={handleClaim}>
-      <Zap className="w-4 h-4" /> {claiming ? "Claiming…" : "Claim Payout"}
-    </Button>
+  return wrap(
+    <Button
+      variant="hero"
+      size={stacked ? "default" : "sm"}
+      className={`gap-2 ${stacked ? "w-full" : ""}`}
+      disabled={busy || claiming}
+      onClick={handleClaim}
+    >
+      <Zap className="w-4 h-4" /> {claiming ? "Claiming ETH…" : "Claim Payout"}
+    </Button>,
   );
 }

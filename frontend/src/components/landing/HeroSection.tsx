@@ -48,7 +48,7 @@ const HeroSection = () => {
           <div className="liquid-glass rounded-full px-4 py-1.5 mb-8 inline-flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Powered by FHE</span>
             <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              Wave 3 — Live on Arbitrum <ChevronRight className="w-3 h-3" />
+              Fhenix CoFHE · Arbitrum Sepolia <ChevronRight className="w-3 h-3" />
             </span>
           </div>
         </motion.div>
@@ -68,7 +68,7 @@ const HeroSection = () => {
           variants={item}
           className="text-lg text-hero-sub max-w-md mt-4 opacity-80 text-center leading-relaxed"
         >
-          Bet on real-world outcomes and live price movements with fully encrypted positions. Your bet amount, direction, and pool totals are invisible on-chain — powered by Fully Homomorphic Encryption.
+          The privacy prediction market on Fhenix: bet on real events and live BTC/ETH/SOL rounds while your direction stays encrypted on-chain. Pools aggregate with homomorphic math — only you decrypt your side when you choose.
         </motion.p>
 
         {/* CTAs */}

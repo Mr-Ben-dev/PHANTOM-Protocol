@@ -21,6 +21,14 @@ import { usePhantomRounds } from "@/hooks/usePhantomRounds";
 import { type Round, useRounds } from "@/hooks/useRounds";
 import { useLivePrice } from "@/hooks/useLivePrice";
 import { RoundPositionActions } from "@/components/rounds/RoundPositionActions";
+import { FhePrivacyBanner } from "@/components/rounds/FhePrivacyBanner";
+import { LiveRoundBoard } from "@/components/rounds/LiveRoundBoard";
+import {
+  pickLiveRounds,
+  pickLockedRounds,
+  pickMyRounds,
+  pickRecentResolved,
+} from "@/lib/roundsDisplay";
 
 const container = {
   hidden: {},
@@ -93,12 +101,14 @@ const Rounds = () => {
     return String(Math.round(btcPrice * 1e8));
   }, [prices.BTC?.price]);
 
+  const liveRounds = useMemo(() => pickLiveRounds(rounds), [rounds]);
+
   const filtered = useMemo(() => {
-    if (activeTab === "open") return rounds.filter((round) => round.status === 1);
-    if (activeTab === "locked") return rounds.filter((round) => round.status === 2);
-    if (activeTab === "resolved") return rounds.filter((round) => round.status === 3);
-    return rounds.filter((round) => round.hasBet);
-  }, [activeTab, rounds]);
+    if (activeTab === "open") return liveRounds;
+    if (activeTab === "locked") return pickLockedRounds(rounds);
+    if (activeTab === "resolved") return pickRecentResolved(rounds, 12);
+    return pickMyRounds(rounds);
+  }, [activeTab, rounds, liveRounds]);
 
   const stats = useMemo(() => {
     return {
@@ -211,11 +221,17 @@ const Rounds = () => {
           <motion.div variants={item} className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between mb-10">
             <div>
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-primary font-mono mb-3">
-                <Activity className="w-3.5 h-3.5" /> Wave 3
+                <Activity className="w-3.5 h-3.5" /> Price rounds
               </div>
               <h1 className="text-3xl font-semibold text-hero-heading mb-2">Rounds</h1>
               <p className="text-muted-foreground max-w-2xl">
-                Five and fifteen minute encrypted UP/DOWN markets settled by signed oracle observations.
+                Live BTC, ETH, and SOL 5m rounds — keeper spins a new trio when each cycle ends. Stake is public ETH; direction is CoFHE-sealed until you reveal and claim.
+              </p>
+              <p className="text-[10px] font-mono text-primary/80 mt-2">
+                Automation:{" "}
+                <a href="https://phantom-keeper.onrender.com" target="_blank" rel="noreferrer" className="underline hover:text-primary">
+                  phantom-keeper.onrender.com
+                </a>
               </p>
             </div>
             <Button variant="outline" size="sm" className="gap-2 w-fit" onClick={refetch}>
@@ -248,8 +264,22 @@ const Rounds = () => {
             </motion.div>
           )}
 
+          <motion.div variants={item} className="mb-8">
+            <FhePrivacyBanner />
+          </motion.div>
+
           <motion.div variants={item} className="grid lg:grid-cols-3 gap-8">
             <section className="lg:col-span-2">
+              {activeTab === "open" && configured && !isLoading && (
+                <LiveRoundBoard
+                  rounds={liveRounds}
+                  amountByRound={amountByRound}
+                  busyRound={busyRound}
+                  onAmountChange={(id, v) => setAmountByRound((prev) => ({ ...prev, [id]: v }))}
+                  onBet={handleBet}
+                />
+              )}
+
               <div className="flex gap-1 mb-6 liquid-glass rounded-full p-1 w-fit max-w-full overflow-x-auto">
                 {(["open", "locked", "resolved", "mine"] as const).map((tab) => (
                   <button
@@ -274,9 +304,9 @@ const Rounds = () => {
               {!configured ? (
                 <div className="text-center py-20 liquid-glass rounded-2xl">
                   <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-4" />
-                  <h2 className="text-xl font-semibold mb-2">PhantomRounds not deployed</h2>
+                  <h2 className="text-xl font-semibold mb-2">PhantomRounds not configured</h2>
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    Deploy the Wave 3 contract to populate the rounds feed from Arbitrum Sepolia.
+                    Set VITE_PHANTOM_ROUNDS_ADDRESS and connect on Arbitrum Sepolia.
                   </p>
                 </div>
               ) : isLoading ? (
@@ -284,6 +314,12 @@ const Rounds = () => {
                   <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                   Loading rounds from contract...
                 </div>
+              ) : activeTab === "open" ? (
+                liveRounds.length === 0 ? (
+                  <p className="text-sm text-muted-foreground font-mono py-6">
+                    Waiting for keeper to open BTC / ETH / SOL — refresh in ~30s.
+                  </p>
+                ) : null
               ) : filtered.length === 0 ? (
                 <div className="text-center py-20 liquid-glass rounded-2xl">
                   <Clock className="w-10 h-10 text-primary mx-auto mb-4" />
@@ -294,9 +330,15 @@ const Rounds = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {activeTab === "resolved" && stats.resolved > 12 && (
+                    <p className="text-xs text-muted-foreground font-mono">
+                      Showing latest 12 of {stats.resolved} resolved rounds.
+                    </p>
+                  )}
                   {filtered.map((round) => {
                     const roundKey = String(round.id);
                     const canBet = round.status === 1 && !round.hasBet;
+                    const showBetRow = round.status === 1;
                     const busy = busyRound === roundKey;
 
                     return (
@@ -382,43 +424,59 @@ const Rounds = () => {
                           <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {String(round.bettorCount)} bettors</span>
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                          <Input
-                            value={amountByRound[roundKey] ?? ""}
-                            onChange={(event) => setAmountByRound((prev) => ({ ...prev, [roundKey]: event.target.value }))}
-                            placeholder="ETH (e.g. 0.01)"
-                            inputMode="decimal"
-                            disabled={!canBet || busy}
-                            className="sm:max-w-40"
-                          />
-                          <Button
-                            variant="hero"
-                            size="sm"
-                            className="gap-2"
-                            disabled={!canBet || busy}
-                            onClick={() => handleBet(round, true)}
-                          >
-                            <TrendingUp className="w-4 h-4" /> UP
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            disabled={!canBet || busy}
-                            onClick={() => handleBet(round, false)}
-                          >
-                            <TrendingDown className="w-4 h-4" /> DOWN
-                          </Button>
-                          {round.hasBet && (
+                        {round.hasBet && round.status === 3 && (
+                          <div className="mb-4 border-t border-border/20 pt-4">
                             <RoundPositionActions
                               round={round}
                               busy={busy}
                               onBusyChange={(v) => setBusyRound(v ? roundKey : null)}
                               onMessage={setMessage}
                               onDone={refetch}
+                              stacked
                             />
-                          )}
-                        </div>
+                          </div>
+                        )}
+
+                        {showBetRow && activeTab !== "open" && (
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <Input
+                              value={amountByRound[roundKey] ?? ""}
+                              onChange={(event) => setAmountByRound((prev) => ({ ...prev, [roundKey]: event.target.value }))}
+                              placeholder="ETH (e.g. 0.01)"
+                              inputMode="decimal"
+                              disabled={!canBet || busy}
+                              className="sm:max-w-40"
+                            />
+                            <Button
+                              variant="hero"
+                              size="sm"
+                              className="gap-2"
+                              disabled={!canBet || busy}
+                              onClick={() => handleBet(round, true)}
+                            >
+                              <TrendingUp className="w-4 h-4" /> UP
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              disabled={!canBet || busy}
+                              onClick={() => handleBet(round, false)}
+                            >
+                              <TrendingDown className="w-4 h-4" /> DOWN
+                            </Button>
+                          </div>
+                        )}
+
+                        {round.hasBet && round.status !== 3 && activeTab !== "open" && (
+                          <RoundPositionActions
+                            round={round}
+                            busy={busy}
+                            onBusyChange={(v) => setBusyRound(v ? roundKey : null)}
+                            onMessage={setMessage}
+                            onDone={refetch}
+                          />
+                        )}
                       </motion.article>
                     );
                   })}
@@ -428,10 +486,13 @@ const Rounds = () => {
 
             <aside className="space-y-6">
               <div className="liquid-glass rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-5">
+                <div className="flex items-center gap-2 mb-2">
                   <Plus className="w-4 h-4 text-primary" />
                   <h2 className="font-semibold">Operator Console</h2>
                 </div>
+                <p className="text-xs text-muted-foreground mb-5 font-mono">
+                  Optional — keeper already auto-creates BTC / ETH / SOL every 5m.
+                </p>
                 <div className="space-y-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1.5 font-mono">Asset</p>

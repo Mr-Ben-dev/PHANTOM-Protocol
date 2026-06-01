@@ -27,7 +27,7 @@ const ReverseChessSection = () => {
           <div className="liquid-glass rounded-full px-4 py-1.5 mb-6 inline-flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Encrypted Positions</span>
             <span className="bg-primary/10 text-primary text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              Wave 1 <ChevronRight className="w-3 h-3" />
+              CoFHE <ChevronRight className="w-3 h-3" />
             </span>
           </div>
 

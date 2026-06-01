@@ -1,12 +1,32 @@
 import { motion } from "framer-motion";
-import { Lock, Unlock } from "lucide-react";
+import { CheckCircle2, Circle } from "lucide-react";
 
-const waves = [
-  { wave: 1, name: "PhantomBet", desc: "Binary YES/NO prediction markets. Encrypted bets, encrypted pools, 8 real markets live on-chain.", status: "LIVE", live: true },
-  { wave: 2, name: "PhantomToken ($PHTM)", desc: "FHERC20 encrypted native token. All balances are euint64 ciphertexts — invisible on-chain.", status: "LIVE", live: true },
-  { wave: 3, name: "PhantomRounds", desc: "Automated price-round engine. 5m/15m BTC/ETH/SOL rounds with keeper bot, oracle signatures, FHE pools.", status: "LIVE", live: true },
-  { wave: 4, name: "PhantomMulti", desc: "Multi-outcome markets with up to 8 FHE-encrypted outcome pools. Bet amounts and pool totals sealed by CoFHE until resolution.", status: "LIVE", live: true },
-  { wave: 5, name: "PhantomOracle", desc: "AI-powered resolution. Encrypted oracle inference on FHE data — trustless settlement, no resolver required.", status: "Coming Wave 5", live: false },
+const modules = [
+  {
+    name: "PhantomBet",
+    desc: "Binary YES/NO markets. Encrypted direction, homomorphic pools, parimutuel claim after resolution.",
+    live: true,
+  },
+  {
+    name: "PhantomRounds",
+    desc: "5m BTC / ETH / SOL price rounds. Keeper locks, oracle-settles, CoFHE reveals pools, users claim with permit + on-chain reveal.",
+    live: true,
+  },
+  {
+    name: "PhantomMulti",
+    desc: "Multi-outcome encrypted markets (2–8 choices). Contract deployed; app routes focus on Bet + Rounds.",
+    live: true,
+  },
+  {
+    name: "Keeper service",
+    desc: "Render-hosted bot: auto-create rounds, lock, resolve, reveal pools. Health at phantom-keeper.onrender.com.",
+    live: true,
+  },
+  {
+    name: "PhantomOracle",
+    desc: "Encrypted AI-assisted resolution research — not in production UI yet.",
+    live: false,
+  },
 ];
 
 const RoadmapSection = () => {
@@ -17,46 +37,38 @@ const RoadmapSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
           <div className="liquid-glass rounded-full px-4 py-1.5 mb-6 inline-flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Roadmap</span>
+            <span className="text-sm text-muted-foreground">Protocol modules</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-bold text-hero-heading">
-            Five Waves of <span className="text-gradient-green">Encrypted Intelligence</span>
+            Built on <span className="text-gradient-green">Fhenix CoFHE</span>
           </h2>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {waves.map((w, i) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {modules.map((m, i) => (
             <motion.div
-              key={w.name}
-              initial={{ opacity: 0, y: 30 }}
+              key={m.name}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1, duration: 0.6 }}
-              className={`liquid-glass rounded-2xl p-6 transition-all duration-300 ${
-                w.live ? "hover:bg-white/[0.03] border border-primary/20" : "opacity-60 hover:opacity-80"
-              }`}
+              transition={{ delay: i * 0.08 }}
+              className={`liquid-glass rounded-2xl p-6 ${m.live ? "border border-primary/15" : "opacity-55"}`}
             >
-              <div className="flex items-center gap-2 mb-4">
-                {w.live ? (
-                  <Unlock className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-2 mb-3">
+                {m.live ? (
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
                 ) : (
-                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  <Circle className="w-4 h-4 text-muted-foreground" />
                 )}
-                <span className="text-xs font-mono text-muted-foreground uppercase">Wave {w.wave}</span>
+                <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                  {m.live ? "Live" : "Planned"}
+                </span>
               </div>
-              <h3 className={`text-base font-semibold mb-2 ${w.live ? "text-foreground" : "text-muted-foreground"}`}>
-                {w.name}
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed mb-4">{w.desc}</p>
-              <div className={`inline-flex text-xs font-mono px-2 py-1 rounded-full ${
-                w.live ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"
-              }`}>
-                {w.status}
-              </div>
+              <h3 className="text-base font-semibold mb-2">{m.name}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{m.desc}</p>
             </motion.div>
           ))}
         </div>

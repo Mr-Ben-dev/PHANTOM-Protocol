@@ -4,7 +4,7 @@ import {
   PHANTOM_ROUNDS_ABI,
   PHANTOM_ROUNDS_ADDRESS,
 } from "@/config/contracts";
-import { getCofheClient } from "@/lib/fhe";
+import { decryptTxBool } from "@/lib/cofheDecrypt";
 import { usePhantomRounds } from "./usePhantomRounds";
 
 export interface RevealedDirection {
@@ -35,18 +35,8 @@ export function useRevealRoundDirection(roundId: bigint) {
     setRevealing(true);
     setError(null);
     try {
-      const client = getCofheClient();
-
-      const decryptResult = (await client
-        .decryptForView(directionCtHash as never, 0 /* Bool */)
-        .execute()) as boolean | { value: boolean; signature: `0x${string}` };
-
-      const directionUp =
-        typeof decryptResult === "boolean" ? decryptResult : decryptResult.value;
-      const sig: `0x${string}` =
-        typeof decryptResult === "boolean" ? "0x" : decryptResult.signature;
-
-      await revealMyDirection(roundId, directionUp, sig);
+      const { value: directionUp, signature } = await decryptTxBool(directionCtHash as bigint);
+      await revealMyDirection(roundId, directionUp, signature);
       setResult({ directionUp });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
