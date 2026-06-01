@@ -47,8 +47,9 @@ async function encryptUint8(cofheClient: any, value: number, signer: any): Promi
   }
 }
 
-function future(seconds: number) {
-  return Math.floor(Date.now() / 1000) + seconds;
+async function future(seconds: number) {
+  const block = await ethers.provider.getBlock("latest");
+  return block!.timestamp + seconds;
 }
 
 function past(seconds: number) {
@@ -63,6 +64,17 @@ async function blockTimestamp(): Promise<number> {
 const TWO_OUTCOMES   = ["YES", "NO"];
 const THREE_OUTCOMES = ["Bull", "Neutral", "Bear"];
 const EIGHT_OUTCOMES = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+const BET_OPTS = { value: ethers.parseEther("0.01") };
+
+async function placeBetSimple(
+  contract: Awaited<ReturnType<typeof deployPhantomMulti>>["contract"],
+  signer: Awaited<ReturnType<typeof ethers.getSigners>>[0],
+  marketId: bigint | number,
+  outcomeIdx: number,
+) {
+  return contract.connect(signer).placeMultiBetSimple(marketId, outcomeIdx, BET_OPTS);
+}
 
 // ──────────────────────────────────────────────────────────────────
 // ACL / ROLE TESTS
@@ -107,64 +119,64 @@ describe("PhantomMulti — ACL & Roles", function () {
 describe("PhantomMulti — Market Creation", function () {
   it("Creates a 2-outcome market", async function () {
     const { contract } = await deployPhantomMulti();
-    const tx = await contract.createMultiMarket("Will ETH hit $5K?", TWO_OUTCOMES, future(3600), future(7200));
+    const tx = await contract.createMultiMarket("Will ETH hit $5K?", TWO_OUTCOMES, await future(3600), await future(7200));
     await tx.wait();
     expect(await contract.getMultiMarketCount()).to.equal(1);
   });
 
   it("Creates a 3-outcome market", async function () {
     const { contract } = await deployPhantomMulti();
-    const tx = await contract.createMultiMarket("BTC end-of-year range?", THREE_OUTCOMES, future(3600), future(7200));
+    const tx = await contract.createMultiMarket("BTC end-of-year range?", THREE_OUTCOMES, await future(3600), await future(7200));
     await tx.wait();
     expect(await contract.getMultiMarketCount()).to.equal(1);
   });
 
   it("Creates an 8-outcome market", async function () {
     const { contract } = await deployPhantomMulti();
-    const tx = await contract.createMultiMarket("8-way market?", EIGHT_OUTCOMES, future(3600), future(7200));
+    const tx = await contract.createMultiMarket("8-way market?", EIGHT_OUTCOMES, await future(3600), await future(7200));
     await tx.wait();
     expect(await contract.getMultiMarketCount()).to.equal(1);
   });
 
   it("Creates sequential market IDs", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q1?", TWO_OUTCOMES, future(3600), future(7200));
-    await contract.createMultiMarket("Q2?", THREE_OUTCOMES, future(3600), future(7200));
-    await contract.createMultiMarket("Q3?", EIGHT_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q1?", TWO_OUTCOMES, await future(3600), await future(7200));
+    await contract.createMultiMarket("Q2?", THREE_OUTCOMES, await future(3600), await future(7200));
+    await contract.createMultiMarket("Q3?", EIGHT_OUTCOMES, await future(3600), await future(7200));
     expect(await contract.getMultiMarketCount()).to.equal(3);
   });
 
   it("Reverts with >8 outcomes", async function () {
     const { contract } = await deployPhantomMulti();
     await expect(
-      contract.createMultiMarket("Too many?", ["A","B","C","D","E","F","G","H","I"], future(3600), future(7200))
+      contract.createMultiMarket("Too many?", ["A","B","C","D","E","F","G","H","I"], await future(3600), await future(7200))
     ).to.be.revertedWith("Too many outcomes");
   });
 
   it("Reverts with <2 outcomes", async function () {
     const { contract } = await deployPhantomMulti();
     await expect(
-      contract.createMultiMarket("Just one?", ["Only"], future(3600), future(7200))
+      contract.createMultiMarket("Just one?", ["Only"], await future(3600), await future(7200))
     ).to.be.revertedWith("Need at least 2 outcomes");
   });
 
   it("Reverts with empty question", async function () {
     const { contract } = await deployPhantomMulti();
     await expect(
-      contract.createMultiMarket("", TWO_OUTCOMES, future(3600), future(7200))
+      contract.createMultiMarket("", TWO_OUTCOMES, await future(3600), await future(7200))
     ).to.be.revertedWith("Empty question");
   });
 
   it("Reverts if deadline is in the past", async function () {
     const { contract } = await deployPhantomMulti();
     await expect(
-      contract.createMultiMarket("Q?", TWO_OUTCOMES, past(100), future(3600))
+      contract.createMultiMarket("Q?", TWO_OUTCOMES, past(100), await future(3600))
     ).to.be.revertedWith("Deadline in past");
   });
 
   it("Reverts if resolution is before deadline", async function () {
     const { contract } = await deployPhantomMulti();
-    const d = future(7200);
+    const d = await future(7200);
     await expect(
       contract.createMultiMarket("Q?", TWO_OUTCOMES, d, d - 1)
     ).to.be.revertedWith("Resolution before deadline");
@@ -172,21 +184,21 @@ describe("PhantomMulti — Market Creation", function () {
 
   it("Market status is OPEN after creation", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     const info = await contract.getMultiMarketInfo(0);
     expect(info.status).to.equal(1 /* OPEN */);
   });
 
   it("outcomeCount matches label count", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     const info = await contract.getMultiMarketInfo(0);
     expect(info.outcomeCount).to.equal(3);
   });
 
   it("Outcome labels are stored correctly", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     expect(await contract.getOutcomeLabel(0, 0)).to.equal("Bull");
     expect(await contract.getOutcomeLabel(0, 1)).to.equal("Neutral");
     expect(await contract.getOutcomeLabel(0, 2)).to.equal("Bear");
@@ -194,7 +206,7 @@ describe("PhantomMulti — Market Creation", function () {
 
   it("Creator address stored correctly", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.connect(alice).createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.connect(alice).createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     const info = await contract.getMultiMarketInfo(0);
     expect(info.creator).to.equal(alice.address);
   });
@@ -202,7 +214,7 @@ describe("PhantomMulti — Market Creation", function () {
   it("Emits MultiMarketCreated event", async function () {
     const { contract } = await deployPhantomMulti();
     await expect(
-      contract.createMultiMarket("ETH >$5K?", TWO_OUTCOMES, future(3600), future(7200))
+      contract.createMultiMarket("ETH >$5K?", TWO_OUTCOMES, await future(3600), await future(7200))
     ).to.emit(contract, "MultiMarketCreated").withArgs(
       0, // marketId
       (await ethers.getSigners())[0].address,
@@ -221,10 +233,10 @@ describe("PhantomMulti — Market Creation", function () {
 describe("PhantomMulti — Simple Bet Placement", function () {
   it("Accepts a valid simple bet on outcome 0", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
       expect(await contract.hasBet(0, alice.address)).to.equal(true);
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -234,10 +246,10 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Accepts a valid simple bet on last outcome", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 500_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 2, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 2, BET_OPTS);
       expect(await contract.hasBet(0, alice.address)).to.equal(true);
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -247,11 +259,11 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Reverts if outcomeIdx >= outcomeCount", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
       await expect(
-        contract.connect(alice).placeMultiBetSimple(0, 2, encAmount)
+        contract.connect(alice).placeMultiBetSimple(0, 2, BET_OPTS)
       ).to.be.revertedWith("Invalid outcome");
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -261,13 +273,13 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Reverts on duplicate bet", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const enc1 = await encryptUint64(cofheClient, 1_000n, alice);
       const enc2 = await encryptUint64(cofheClient, 2_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, enc1);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
       await expect(
-        contract.connect(alice).placeMultiBetSimple(0, 1, enc2)
+        contract.connect(alice).placeMultiBetSimple(0, 1, BET_OPTS)
       ).to.be.revertedWith("Already bet");
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -285,7 +297,7 @@ describe("PhantomMulti — Simple Bet Placement", function () {
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
       await expect(
-        contract.connect(alice).placeMultiBetSimple(0, 0, encAmount)
+        contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS)
       ).to.be.revertedWith("Betting closed");
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -295,14 +307,14 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Multiple bettors can each bet once", async function () {
     const { contract, alice, bob, charlie, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     try {
       const encA = await encryptUint64(cofheClient, 1_000n, alice);
       const encB = await encryptUint64(cofheClient, 2_000n, bob);
       const encC = await encryptUint64(cofheClient, 3_000n, charlie);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encA);
-      await contract.connect(bob).placeMultiBetSimple(0, 1, encB);
-      await contract.connect(charlie).placeMultiBetSimple(0, 2, encC);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
+      await contract.connect(bob).placeMultiBetSimple(0, 1, BET_OPTS);
+      await contract.connect(charlie).placeMultiBetSimple(0, 2, BET_OPTS);
       expect(await contract.hasBet(0, alice.address)).to.equal(true);
       expect(await contract.hasBet(0, bob.address)).to.equal(true);
       expect(await contract.hasBet(0, charlie.address)).to.equal(true);
@@ -314,11 +326,11 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Emits MultiBetPlaced event", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
       await expect(
-        contract.connect(alice).placeMultiBetSimple(0, 0, encAmount)
+        contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS)
       ).to.emit(contract, "MultiBetPlaced").withArgs(0, alice.address);
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -328,10 +340,10 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("getMyMultiBet returns encrypted handle", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
       const handle = await contract.connect(alice).getMyMultiBet(0);
       expect(handle).to.not.equal(0n);
     } catch (e: any) {
@@ -342,7 +354,7 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Non-bettor cannot call getMyMultiBet", async function () {
     const { contract, alice, bob } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(bob).getMyMultiBet(0)
     ).to.be.revertedWith("No bet placed");
@@ -350,12 +362,12 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 
   it("Cannot bet on a canceled market", async function () {
     const { contract, owner, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await contract.connect(owner).cancelMultiMarket(0, "Test cancel");
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
       await expect(
-        contract.connect(alice).placeMultiBetSimple(0, 0, encAmount)
+        contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS)
       ).to.be.revertedWith("Market not open");
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -371,11 +383,11 @@ describe("PhantomMulti — Simple Bet Placement", function () {
 describe("PhantomMulti — Encrypted Bet Path (placeMultiBet)", function () {
   it("Accepts encrypted outcome index + encrypted amount", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     try {
       const encIdx    = await encryptUint8(cofheClient, 1, alice);
       const encAmount = await encryptUint64(cofheClient, 2_000n, alice);
-      await contract.connect(alice).placeMultiBet(0, encIdx, encAmount);
+      await contract.connect(alice).placeMultiBet(0, encIdx, encAmount, BET_OPTS);
       expect(await contract.hasBet(0, alice.address)).to.equal(true);
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -385,15 +397,15 @@ describe("PhantomMulti — Encrypted Bet Path (placeMultiBet)", function () {
 
   it("Encrypted path also reverts on duplicate bet", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encIdx1 = await encryptUint8(cofheClient, 0, alice);
       const encAmt1 = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBet(0, encIdx1, encAmt1);
+      await contract.connect(alice).placeMultiBet(0, encIdx1, encAmt1, BET_OPTS);
       const encIdx2 = await encryptUint8(cofheClient, 1, alice);
       const encAmt2 = await encryptUint64(cofheClient, 1_000n, alice);
       await expect(
-        contract.connect(alice).placeMultiBet(0, encIdx2, encAmt2)
+        contract.connect(alice).placeMultiBet(0, encIdx2, encAmt2, BET_OPTS)
       ).to.be.revertedWith("Already bet");
     } catch (e: any) {
       if (e.message?.includes("skip")) { console.log("    ⚠ CoFHE mock unavailable — skipping"); return; }
@@ -403,11 +415,11 @@ describe("PhantomMulti — Encrypted Bet Path (placeMultiBet)", function () {
 
   it("getMyBetOutcome returns handle for encrypted path", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encIdx    = await encryptUint8(cofheClient, 0, alice);
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBet(0, encIdx, encAmount);
+      await contract.connect(alice).placeMultiBet(0, encIdx, encAmount, BET_OPTS);
       const handle = await contract.connect(alice).getMyBetOutcome(0);
       expect(handle).to.not.equal(0n);
     } catch (e: any) {
@@ -439,7 +451,7 @@ describe("PhantomMulti — Market Resolution", function () {
 
   it("Non-resolver cannot resolve", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
 
     await expect(
       contract.connect(alice).resolveMultiMarket(0, 0)
@@ -487,7 +499,7 @@ describe("PhantomMulti — Market Resolution", function () {
 
   it("Cannot resolve a canceled market", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await contract.connect(owner).cancelMultiMarket(0, "reason");
 
     await expect(
@@ -503,7 +515,7 @@ describe("PhantomMulti — Market Resolution", function () {
 describe("PhantomMulti — Market Cancellation", function () {
   it("Resolver can cancel an OPEN market", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await contract.connect(owner).cancelMultiMarket(0, "Oracle failure");
     const info = await contract.getMultiMarketInfo(0);
     expect(info.canceled).to.equal(true);
@@ -512,7 +524,7 @@ describe("PhantomMulti — Market Cancellation", function () {
 
   it("Non-resolver cannot cancel", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(alice).cancelMultiMarket(0, "reason")
     ).to.be.revertedWith("PhantomACL: unauthorized");
@@ -520,7 +532,7 @@ describe("PhantomMulti — Market Cancellation", function () {
 
   it("Cannot double cancel", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await contract.connect(owner).cancelMultiMarket(0, "reason");
     await expect(
       contract.connect(owner).cancelMultiMarket(0, "reason2")
@@ -529,7 +541,7 @@ describe("PhantomMulti — Market Cancellation", function () {
 
   it("Emits MultiMarketCanceled event", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(owner).cancelMultiMarket(0, "Oracle failure")
     ).to.emit(contract, "MultiMarketCanceled").withArgs(0, "Oracle failure");
@@ -543,7 +555,7 @@ describe("PhantomMulti — Market Cancellation", function () {
 describe("PhantomMulti — Pool Reveal", function () {
   it("Reverts reveal before resolution", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
 
     await expect(
       contract.revealMultiPools(0, [], [], [])
@@ -591,10 +603,10 @@ describe("PhantomMulti — Pool Reveal", function () {
 describe("PhantomMulti — Bet Reveal & Claim", function () {
   it("revealMyBet reverts before market resolution", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
       const handle = await contract.connect(alice).getMyMultiBet(0);
       await expect(
         contract.connect(alice).revealMyBet(0, handle, 1000n, "0x")
@@ -621,10 +633,10 @@ describe("PhantomMulti — Bet Reveal & Claim", function () {
 
   it("claimMultiPayout reverts before resolution", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
     } catch (_) { /* skip bet placement if CoFHE unavailable */ }
     await expect(
       contract.connect(alice).claimMultiPayout(0)
@@ -637,7 +649,7 @@ describe("PhantomMulti — Bet Reveal & Claim", function () {
     await contract.createMultiMarket("Q?", TWO_OUTCOMES, now + 10, now + 7200);
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
     } catch (_) { /* skip bet placement if CoFHE unavailable */ }
 
     await ethers.provider.send("evm_increaseTime", [11]);
@@ -649,19 +661,17 @@ describe("PhantomMulti — Bet Reveal & Claim", function () {
     ).to.be.revertedWith("Pools not revealed");
   });
 
-  it("claimMultiPayout reverts if bet not revealed", async function () {
-    // This requires a mock publish workflow — skipped when CoFHE mock unavailable
-    // The contract-level check "Bet not revealed" is validated by the state machine logic
+  it("claimMultiPayout reverts if choice not revealed", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    expect(await contract.betRevealed(0, alice.address)).to.equal(false);
+    expect(await contract.choiceRevealed(0, alice.address)).to.equal(false);
   });
 
   it("hasClaimed starts false", async function () {
     const { contract, alice, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     try {
       const encAmount = await encryptUint64(cofheClient, 1_000n, alice);
-      await contract.connect(alice).placeMultiBetSimple(0, 0, encAmount);
+      await contract.connect(alice).placeMultiBetSimple(0, 0, BET_OPTS);
     } catch (_) { /* skip bet if CoFHE unavailable */ }
     expect(await contract.hasClaimed(0, alice.address)).to.equal(false);
   });
@@ -674,7 +684,7 @@ describe("PhantomMulti — Bet Reveal & Claim", function () {
 describe("PhantomMulti — Privacy & ACL", function () {
   it("Non-bettor cannot call getMyMultiBet", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(alice).getMyMultiBet(0)
     ).to.be.revertedWith("No bet placed");
@@ -682,7 +692,7 @@ describe("PhantomMulti — Privacy & ACL", function () {
 
   it("Non-bettor cannot call getMyBetOutcome", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(alice).getMyBetOutcome(0)
     ).to.be.revertedWith("No bet placed");
@@ -690,7 +700,7 @@ describe("PhantomMulti — Privacy & ACL", function () {
 
   it("Non-auditor cannot read encBettorCount", async function () {
     const { contract, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.connect(alice).getEncBettorCount(0)
     ).to.be.revertedWith("Not authorized");
@@ -698,7 +708,7 @@ describe("PhantomMulti — Privacy & ACL", function () {
 
   it("AUDITOR role can read encBettorCount", async function () {
     const { contract, owner, alice } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await contract.connect(owner).grantRole(alice.address, 4 /* AUDITOR */);
     // Should not revert
     const handle = await contract.connect(alice).getEncBettorCount(0);
@@ -707,21 +717,21 @@ describe("PhantomMulti — Privacy & ACL", function () {
 
   it("Owner can read encBettorCount", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     const handle = await contract.connect(owner).getEncBettorCount(0);
     expect(handle).to.not.equal(undefined);
   });
 
   it("getEncPool returns a handle", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
     const handle = await contract.getEncPool(0, 0);
     expect(handle).to.not.equal(undefined);
   });
 
   it("getEncPool reverts on out-of-range index (>= MAX_OUTCOMES)", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.getEncPool(0, 8)
     ).to.be.revertedWith("Invalid idx");
@@ -735,8 +745,8 @@ describe("PhantomMulti — Privacy & ACL", function () {
 describe("PhantomMulti — View Functions", function () {
   it("getMultiMarketInfo returns correct public fields", async function () {
     const { contract, owner } = await deployPhantomMulti();
-    const d = future(3600);
-    const r = future(7200);
+    const d = await future(3600);
+    const r = await future(7200);
     await contract.createMultiMarket("BTC range?", THREE_OUTCOMES, d, r);
 
     const info = await contract.getMultiMarketInfo(0);
@@ -754,15 +764,15 @@ describe("PhantomMulti — View Functions", function () {
   it("getMultiMarketCount returns correct count", async function () {
     const { contract } = await deployPhantomMulti();
     expect(await contract.getMultiMarketCount()).to.equal(0);
-    await contract.createMultiMarket("Q1?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q1?", TWO_OUTCOMES, await future(3600), await future(7200));
     expect(await contract.getMultiMarketCount()).to.equal(1);
-    await contract.createMultiMarket("Q2?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q2?", THREE_OUTCOMES, await future(3600), await future(7200));
     expect(await contract.getMultiMarketCount()).to.equal(2);
   });
 
   it("getOutcomeLabels returns all 8 slots (unused = empty string)", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     const labels = await contract.getOutcomeLabels(0);
     expect(labels[0]).to.equal("YES");
     expect(labels[1]).to.equal("NO");
@@ -771,7 +781,7 @@ describe("PhantomMulti — View Functions", function () {
 
   it("getOutcomeLabel reverts on out-of-range index", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", TWO_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", TWO_OUTCOMES, await future(3600), await future(7200));
     await expect(
       contract.getOutcomeLabel(0, 2)
     ).to.be.revertedWith("Invalid idx");
@@ -786,11 +796,10 @@ describe("PhantomMulti — Edge Cases", function () {
   it("8 bettors can place bets on 8 different outcomes", async function () {
     const signers = await ethers.getSigners();
     const { contract, cofheClient } = await deployPhantomMulti();
-    await contract.createMultiMarket("8-way?", EIGHT_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("8-way?", EIGHT_OUTCOMES, await future(3600), await future(7200));
     try {
       for (let i = 0; i < 8; i++) {
-        const enc = await encryptUint64(cofheClient, BigInt((i + 1) * 1000), signers[i]);
-        await contract.connect(signers[i]).placeMultiBetSimple(0, i, enc);
+        await contract.connect(signers[i]).placeMultiBetSimple(0, i, BET_OPTS);
       }
       for (let i = 0; i < 8; i++) {
         expect(await contract.hasBet(0, signers[i].address)).to.equal(true);
@@ -804,14 +813,14 @@ describe("PhantomMulti — Edge Cases", function () {
   it("marketCount increments correctly across many markets", async function () {
     const { contract } = await deployPhantomMulti();
     for (let i = 0; i < 10; i++) {
-      await contract.createMultiMarket(`Q${i}?`, TWO_OUTCOMES, future(3600), future(7200));
+      await contract.createMultiMarket(`Q${i}?`, TWO_OUTCOMES, await future(3600), await future(7200));
     }
     expect(await contract.getMultiMarketCount()).to.equal(10);
   });
 
   it("Pool handles are different FHE ciphertexts per outcome", async function () {
     const { contract } = await deployPhantomMulti();
-    await contract.createMultiMarket("Q?", THREE_OUTCOMES, future(3600), future(7200));
+    await contract.createMultiMarket("Q?", THREE_OUTCOMES, await future(3600), await future(7200));
 
     const h0 = await contract.getEncPool(0, 0);
     const h1 = await contract.getEncPool(0, 1);
