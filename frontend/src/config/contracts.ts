@@ -13,7 +13,7 @@
 
 export const PHANTOM_BET_ADDRESS =
   (import.meta.env.VITE_PHANTOM_BET_ADDRESS as `0x${string}` | undefined) ??
-  "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228";
+  "0x561428264991044f47705C92CE482E37C9cD71b7";
 
 export const PHANTOM_TOKEN_ADDRESS =
   (import.meta.env.VITE_PHANTOM_TOKEN_ADDRESS as `0x${string}` | undefined) ??
@@ -26,7 +26,7 @@ export const PHANTOM_ROUNDS_ADDRESS =
 // Wave 4 — PhantomMulti (address populated after deployment)
 export const PHANTOM_MULTI_ADDRESS =
   (import.meta.env.VITE_PHANTOM_MULTI_ADDRESS as `0x${string}` | undefined) ??
-  "0x674200f50Ee8816355dB3105d06fF799d15720F3";
+  "0x4923426E703530cc4C9467F9B47AF3C85599ebaF";
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
@@ -93,7 +93,9 @@ export const PHANTOM_BET_ABI = [
       { name: "deadline",          type: "uint256" },
       { name: "resolutionTime",    type: "uint256" },
       { name: "bettorCount",       type: "uint256" },
+      { name: "totalEth",          type: "uint256" },
       { name: "resolved",          type: "bool"    },
+      { name: "canceled",          type: "bool"    },
       { name: "outcome",           type: "bool"    },
       { name: "creator",           type: "address" },
       { name: "poolsRevealed",     type: "bool"    },
@@ -155,6 +157,36 @@ export const PHANTOM_BET_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
   {
+    name: "sideRevealed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "ethStakes",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getMarketEth",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [
+      { name: "totalEth",  type: "uint256" },
+      { name: "userStake", type: "uint256" },
+    ],
+  },
+  {
     name: "owner",
     type: "function",
     stateMutability: "view",
@@ -181,9 +213,19 @@ export const PHANTOM_BET_ABI = [
     outputs: [{ name: "marketId", type: "uint256" }],
   },
   {
+    name: "placeBetSimple",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "isYes",     type: "bool"    },
+    ],
+    outputs: [],
+  },
+  {
     name: "placeBet",
     type: "function",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "_marketId",  type: "uint256"           },
       { name: "_encAmount", ...IN_EUINT64_TYPE         },
@@ -213,6 +255,17 @@ export const PHANTOM_BET_ABI = [
       { name: "noCtHash",      type: "uint256" },
       { name: "noPlaintext",   type: "uint64"  },
       { name: "noSignature",   type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revealMySide",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "isYes",     type: "bool"    },
+      { name: "sig",       type: "bytes"   },
     ],
     outputs: [],
   },
@@ -770,6 +823,37 @@ export const PHANTOM_MULTI_ABI = [
       { name: "canceled",       type: "bool"    },
       { name: "creator",        type: "address" },
       { name: "status",         type: "uint8"   },
+      { name: "totalEth",       type: "uint256" },
+    ],
+  },
+  {
+    name: "choiceRevealed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "ethStakes",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "_marketId", type: "uint256" },
+      { name: "_user",     type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getMultiMarketEth",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_marketId", type: "uint256" }],
+    outputs: [
+      { name: "totalEth",  type: "uint256" },
+      { name: "userStake", type: "uint256" },
     ],
   },
   {
@@ -909,22 +993,19 @@ export const PHANTOM_MULTI_ABI = [
     outputs: [{ name: "marketId", type: "uint256" }],
   },
   {
-    // Simple path: outcome index is plaintext, amount is encrypted
     name: "placeMultiBetSimple",
     type: "function",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
-      { name: "_marketId",   type: "uint256"     },
-      { name: "_outcomeIdx", type: "uint8"       },
-      { name: "_encAmount",  ...IN_EUINT64_TYPE  },
+      { name: "_marketId",   type: "uint256" },
+      { name: "_outcomeIdx", type: "uint8"   },
     ],
     outputs: [],
   },
   {
-    // Private path: both outcome index AND amount are encrypted
     name: "placeMultiBet",
     type: "function",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "_marketId",       type: "uint256"    },
       { name: "_encOutcomeIdx",  ...IN_EUINT8_TYPE  },
@@ -963,6 +1044,17 @@ export const PHANTOM_MULTI_ABI = [
       { name: "_ctHash",    type: "uint256" },   // euint64 handle as uint256
       { name: "_betAmount", type: "uint64"  },
       { name: "_signature", type: "bytes"   },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revealMyChoice",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_marketId",  type: "uint256" },
+      { name: "outcomeIdx", type: "uint8"   },
+      { name: "sig",        type: "bytes"   },
     ],
     outputs: [],
   },
