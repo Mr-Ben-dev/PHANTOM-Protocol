@@ -26,15 +26,25 @@ export type DecryptTxResult = { value: bigint; signature: `0x${string}` };
 
 /** Decrypt a publicly allowed handle for on-chain publishDecryptResult. */
 export async function decryptPublicHandle(ctHash: bigint): Promise<DecryptTxResult> {
-  const result = (await cofheClient
+  const result = await cofheClient
     .decryptForTx(ctHash as never)
     .withoutPermit()
-    .execute()) as DecryptTxResult | bigint;
+    .execute();
 
   if (typeof result === "bigint") {
     return { value: result, signature: "0x" };
   }
-  return result;
+
+  if (result && typeof result === "object") {
+    const r = result as Record<string, unknown>;
+    const value = (r.value ?? r.decryptedValue) as bigint | undefined;
+    const signature = (r.signature ?? "0x") as `0x${string}`;
+    if (value != null) {
+      return { value, signature };
+    }
+  }
+
+  throw new Error("Unexpected decryptForTx result shape");
 }
 
 /** Decrypt a user-permitted bool handle for revealMyDirection. */
