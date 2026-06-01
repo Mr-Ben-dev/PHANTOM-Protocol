@@ -15,7 +15,6 @@ import { createServer } from "node:http";
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   stringToHex,
   type Address,
@@ -24,6 +23,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import { decryptPublicHandle, ensureCofheConnected } from "./cofhe.js";
+import { arbSepoliaTransport } from "./rpc.js";
 
 const PRIVATE_KEY = (process.env.PRIVATE_KEY ?? "") as Hex;
 const RPC_URL = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
@@ -37,15 +37,25 @@ let lastTickError: string | null = null;
 let lastRoundCount = 0n;
 let authorized = true;
 
-if (!PRIVATE_KEY.startsWith("0x")) { console.error("Set PRIVATE_KEY=0x... in .env"); process.exit(1); }
-if (!ROUNDS_ADDRESS || ROUNDS_ADDRESS === "0x") { console.error("Set PHANTOM_ROUNDS_ADDRESS in .env"); process.exit(1); }
+if (!PRIVATE_KEY.startsWith("0x")) {
+  console.error("❌  PRIVATE_KEY is missing or invalid.");
+  console.error("    Render: Dashboard → phantom-keeper → Environment → add PRIVATE_KEY=0x… (Secret)");
+  console.error("    Local:  copy from bot/.env");
+  process.exit(1);
+}
+if (!ROUNDS_ADDRESS || ROUNDS_ADDRESS === "0x") {
+  console.error("❌  PHANTOM_ROUNDS_ADDRESS is missing.");
+  console.error("    Set PHANTOM_ROUNDS_ADDRESS=0x76db8a0429d19e8440e3D290F79c0613834c72a1");
+  process.exit(1);
+}
 
 const ORACLE_KEY = ((process.env.ORACLE_SIGNER_KEY || PRIVATE_KEY) as Hex);
 const account = privateKeyToAccount(PRIVATE_KEY);
 const oracleAccount = privateKeyToAccount(ORACLE_KEY);
 
-const publicClient = createPublicClient({ chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 20_000 }) });
-const walletClient = createWalletClient({ account, chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 30_000 }) });
+const transport = arbSepoliaTransport();
+const publicClient = createPublicClient({ chain: arbitrumSepolia, transport });
+const walletClient = createWalletClient({ account, chain: arbitrumSepolia, transport });
 
 const ABI = parseAbi([
   "function getRoundCount() view returns (uint256)",
@@ -82,12 +92,22 @@ function encodeLabel(s: string): `0x${string}` { return stringToHex(s.slice(0, 3
 function priceToUint64(p: number): bigint { return BigInt(Math.round(p * 1e8)); }
 
 async function fetchPrice(symbol: string): Promise<number> {
-  const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol.toUpperCase()}USDT`, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`Binance ${symbol}: HTTP ${res.status}`);
-  const data = (await res.json()) as { price: string };
-  const price = parseFloat(data.price);
-  if (!price || isNaN(price)) throw new Error(`Binance ${symbol}: invalid price`);
-  return price;
+  const sym = symbol.toUpperCase();
+  try {
+    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}USDT`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { price: string };
+    const price = parseFloat(data.price);
+    if (!price || isNaN(price)) throw new Error("invalid price");
+    return price;
+  } catch {
+    const res = await fetch(`https://api.coinbase.com/v2/prices/${sym}-USD/spot`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`Coinbase ${sym}: HTTP ${res.status}`);
+    const data = (await res.json()) as { data: { amount: string } };
+    const price = parseFloat(data.data.amount);
+    if (!price || isNaN(price)) throw new Error(`Coinbase ${sym}: invalid price`);
+    return price;
+  }
 }
 
 async function signOracle(roundId: bigint, endPrice: bigint, observedAt: bigint): Promise<Hex> {
@@ -119,6 +139,14 @@ async function revealPoolsIfNeeded(roundId: bigint): Promise<void> {
   });
   const [, status, , poolsRevealed] = settlement;
   if (Number(status) !== STATUS.RESOLVED || poolsRevealed) return;
+
+  const [, , , , , bettorCount] = await publicClient.readContract({
+    address: ROUNDS_ADDRESS,
+    abi: ABI,
+    functionName: "getRoundCore",
+    args: [roundId],
+  });
+  if (bettorCount === 0n) return;
 
   log(`  [#${roundId}] Revealing encrypted pools via CoFHE...`);
   await ensureCofheConnected(publicClient, walletClient);
@@ -245,7 +273,10 @@ async function tick(): Promise<void> {
     lastRoundCount = count;
     log(`  Rounds on-chain: ${count}`);
 
-    for (let i = 0n; i < count; i++) {
+    // Only scan recent rounds each tick (avoids 50+ empty resolved spam)
+    const window = 28n;
+    const start = count > window ? count - window : 0n;
+    for (let i = start; i < count; i++) {
       const [, , , , , , , status] = await publicClient.readContract({
         address: ROUNDS_ADDRESS, abi: ABI, functionName: "getRoundCore", args: [i],
       });
@@ -278,6 +309,7 @@ console.log("═".repeat(60));
 console.log("  PHANTOM Keeper Bot v3 — 24/7 round automation");
 console.log(`  Keeper  : ${account.address}`);
 console.log(`  Contract: ${ROUNDS_ADDRESS}`);
+console.log(`  RPC     : ${RPC_URL} (+ Alchemy fallback)`);
 console.log(`  Poll    : ${POLL_MS / 1000}s`);
 console.log("═".repeat(60));
 
