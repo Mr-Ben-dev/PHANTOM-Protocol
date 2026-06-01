@@ -11,8 +11,11 @@ import { useMultiMarkets, type MultiMarket } from "@/hooks/useMultiMarkets";
 import { usePhantomMulti } from "@/hooks/usePhantomMulti";
 import { useDecryptMultiPools } from "@/hooks/useDecryptMultiPools";
 import { useDecryptMultiBet } from "@/hooks/useDecryptMultiBet";
+import { useRevealMultiChoice } from "@/hooks/useRevealMultiChoice";
 import { getCofheClient } from "@/lib/fhe";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { PHANTOM_MULTI_ABI, PHANTOM_MULTI_ADDRESS } from "@/config/contracts";
+import { getMultiMarketMeta, CATEGORY_COLORS } from "@/config/multi-market-metadata";
 
 // ─── Animation variants ────────────────────────────────────────────────────────
 
@@ -171,15 +174,10 @@ function MultiBetInterface({
 
   const submit = useCallback(async () => {
     if (selectedOutcome == null || !amountEth) return;
-    setStatus("encrypting");
+    setStatus("submitting");
     setErrMsg(null);
     try {
-      const client = getCofheClient();
-      const amountGwei = BigInt(Math.round(parseFloat(amountEth) * 1e9));
-      // Encrypt the amount
-      const encAmount = await client.encrypt_uint64(amountGwei);
-      setStatus("submitting");
-      await placeMultiBetSimple(market.id, selectedOutcome, encAmount as never);
+      await placeMultiBetSimple(market.id, selectedOutcome, amountEth);
       setStatus("done");
       onSuccess();
     } catch (e) {
@@ -250,10 +248,9 @@ function MultiBetInterface({
         onClick={submit}
         disabled={!isOpen || selectedOutcome == null || !amountEth || status !== "idle"}
       >
-        {status === "encrypting" && <><Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />Encrypting…</>}
         {status === "submitting" && <><Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />Submitting…</>}
         {status === "error" && <><XCircle className="w-3.5 h-3.5 mr-2 text-red-400" />Retry</>}
-        {status === "idle" && "Place Encrypted Bet"}
+        {status === "idle" && "Place Bet (ETH)"}
       </Button>
     </div>
   );
@@ -306,11 +303,21 @@ function PoolsChart({ market }: { market: MultiMarket }) {
 // ─── Position + Claim Panel ───────────────────────────────────────────────────
 
 function PositionPanel({ market, onClaimed }: { market: MultiMarket; onClaimed: () => void }) {
+  const { address } = useAccount();
   const { claimMultiPayout } = usePhantomMulti();
   const { decrypt, result, isDecrypting, error: decryptErr } = useDecryptMultiBet(market.id);
+  const { reveal: revealChoice, isRevealing, error: choiceErr } = useRevealMultiChoice(market.id);
   const [claiming, setClaiming] = useState(false);
   const [claimErr, setClaimErr] = useState<string | null>(null);
   const [claimed, setClaimed] = useState(false);
+
+  const { data: choiceRevealed } = useReadContract({
+    address: PHANTOM_MULTI_ADDRESS,
+    abi: PHANTOM_MULTI_ABI,
+    functionName: "choiceRevealed",
+    args: [market.id, address!],
+    query: { enabled: !!address && !!market.hasBet },
+  });
 
   const claim = useCallback(async () => {
     setClaiming(true);
@@ -342,7 +349,14 @@ function PositionPanel({ market, onClaimed }: { market: MultiMarket; onClaimed: 
       )}
       {decryptErr && <p className="text-[10px] text-red-400 font-mono">{decryptErr}</p>}
 
-      {market.resolved && market.poolsRevealed && !claimed && (
+      {market.resolved && market.poolsRevealed && !choiceRevealed && !claimed && (
+        <Button variant="outline" size="sm" className="w-full" onClick={revealChoice} disabled={isRevealing}>
+          {isRevealing ? "Revealing choice…" : "Reveal Outcome to Claim"}
+        </Button>
+      )}
+      {choiceErr && <p className="text-[10px] text-red-400 font-mono">{choiceErr}</p>}
+
+      {market.resolved && market.poolsRevealed && choiceRevealed && !claimed && (
         <>
           <Button variant="hero" size="sm" className="w-full" onClick={claim} disabled={claiming}>
             {claiming ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-2" />}
@@ -492,6 +506,7 @@ function MultiCard({
   onClick: () => void;
 }) {
   const st = STATUS_LABELS[market.status] ?? STATUS_LABELS[0];
+  const meta = getMultiMarketMeta(market.id);
 
   return (
     <motion.div
@@ -501,6 +516,17 @@ function MultiCard({
         selected ? "border-primary/25 bg-primary/[0.03]" : "border-border/20 hover:border-border/35"
       }`}
     >
+      {meta?.image && (
+        <div className="relative h-28 overflow-hidden">
+          <img src={meta.image} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+          {meta.category && (
+            <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${CATEGORY_COLORS[meta.category] ?? ""}`}>
+              {meta.tag ?? meta.category}
+            </span>
+          )}
+        </div>
+      )}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20">
