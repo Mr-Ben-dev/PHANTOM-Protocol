@@ -1,7 +1,7 @@
 /**
  * PHANTOM Protocol — PhantomBet Market Metadata
  *
- * Static metadata for the 8 seeded prediction markets.
+ * Static metadata for the 10 seeded prediction markets.
  * Keyed by market ID (0-indexed, matching creation order in seed-markets.ts).
  *
  * Images: Unsplash CDN (reliable, no auth required for display).
@@ -73,6 +73,20 @@ export const MARKET_METADATA: MarketMeta[] = [
     image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=640&q=80",
     category: "Crypto",
     tag: "L2",
+  },
+  // 8 — "Will NVIDIA surpass Apple as the world's most valuable company by June 2026?"
+  {
+    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=640&q=80",
+    category: "Finance",
+    tag: "Equities",
+    hot: true,
+  },
+  // 9 — "Will a spot Solana ETF be approved in the United States before December 2026?"
+  {
+    image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=640&q=80",
+    category: "Regulation",
+    tag: "SOL ETF",
+    isNew: true,
   },
 ];
 
