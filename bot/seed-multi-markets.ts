@@ -59,46 +59,42 @@ const ABI = parseAbi([
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function ts(isoDate: string): bigint {
-  return BigInt(Math.floor(new Date(isoDate).getTime() / 1000));
-}
-
-function tsPlus(isoDate: string, extraDays: number): bigint {
-  return BigInt(Math.floor(new Date(isoDate).getTime() / 1000) + extraDays * 86400);
+function daysFromNow(days: number): bigint {
+  return BigInt(Math.floor(Date.now() / 1000) + days * 86400);
 }
 
 // ─── Market definitions ───────────────────────────────────────────────────────
 
 const MARKETS = [
   {
-    question: "What range will BTC trade in at the close of Q3 2025?",
+    question: "What range will BTC trade in at the close of Q3 2026?",
     labels: ["Below $70K", "$70K – $90K", "$90K – $110K", "Above $110K"],
-    deadline: ts("2025-09-30T00:00:00Z"),
-    resolutionTime: tsPlus("2025-09-30T00:00:00Z", 3),
+    deadline: daysFromNow(90),
+    resolutionTime: daysFromNow(93),
   },
   {
-    question: "Who will lead the AI coding assistant market by end of 2025?",
+    question: "Who will lead the AI coding assistant market by end of 2026?",
     labels: ["OpenAI / ChatGPT", "Anthropic / Claude", "Google / Gemini", "Meta / Llama"],
-    deadline: ts("2025-12-15T00:00:00Z"),
-    resolutionTime: tsPlus("2025-12-15T00:00:00Z", 7),
+    deadline: daysFromNow(180),
+    resolutionTime: daysFromNow(187),
   },
   {
     question: "What will ETH's market-cap dominance be in 90 days?",
     labels: ["Below 10%", "10% – 15%", "15% – 20%", "Above 20%"],
-    deadline: tsPlus(new Date().toISOString().slice(0, 10) + "T00:00:00Z", 90),
-    resolutionTime: tsPlus(new Date().toISOString().slice(0, 10) + "T00:00:00Z", 93),
+    deadline: daysFromNow(90),
+    resolutionTime: daysFromNow(93),
   },
   {
     question: "What will the Fed decide at its next FOMC meeting?",
     labels: ["Cut 50 bps", "Cut 25 bps", "Hold", "Hike"],
-    deadline: ts("2025-07-28T18:00:00Z"),
-    resolutionTime: tsPlus("2025-07-28T18:00:00Z", 1),
+    deadline: daysFromNow(60),
+    resolutionTime: daysFromNow(61),
   },
   {
-    question: "Where will SOL trade by end of 2025?",
+    question: "Where will SOL trade by end of 2026?",
     labels: ["Below $100", "$100 – $200", "$200 – $300", "Above $300"],
-    deadline: ts("2025-12-28T00:00:00Z"),
-    resolutionTime: tsPlus("2025-12-28T00:00:00Z", 4),
+    deadline: daysFromNow(200),
+    resolutionTime: daysFromNow(204),
   },
 ];
 
@@ -111,10 +107,16 @@ async function main() {
   console.log(`🏗   Contract owner: ${owner}`);
   console.log(`🎭  Seeder role: ${role} (1=CREATOR, 2=BETTOR, 3=RESOLVER)`);
 
-  const before = await pub.readContract({ address: PHANTOM_MULTI_ADDRESS, abi: ABI, functionName: "getMultiMarketCount" });
+  const before = Number(await pub.readContract({ address: PHANTOM_MULTI_ADDRESS, abi: ABI, functionName: "getMultiMarketCount" }));
   console.log(`\n📊  Existing market count: ${before}`);
 
-  for (const m of MARKETS) {
+  if (before >= MARKETS.length) {
+    console.log(`\n✅  Already seeded (${before} markets) — skipping`);
+    return;
+  }
+
+  for (let i = before; i < MARKETS.length; i++) {
+    const m = MARKETS[i];
     console.log(`\n➕  Creating: "${m.question}"`);
     console.log(`    Labels: [${m.labels.join(", ")}]`);
     console.log(`    Deadline: ${new Date(Number(m.deadline) * 1000).toUTCString()}`);

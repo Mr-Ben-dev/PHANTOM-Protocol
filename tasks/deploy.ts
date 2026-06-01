@@ -68,6 +68,17 @@ async function main() {
   fs.writeFileSync(frontendEnvPath, envContent, "utf8");
   console.log("\n✅ Written to frontend/.env:", frontendEnvPath);
 
+  const botEnvPath = path.resolve(__dirname, "../bot/.env");
+  const botEnvLines = [
+    `PRIVATE_KEY=0x${(process.env.PRIVATE_KEY ?? "").replace(/^0x/, "")}`,
+    `RPC_URL=${process.env.ARBITRUM_SEPOLIA_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc"}`,
+    `PHANTOM_BET_ADDRESS=${betAddress}`,
+    `PHANTOM_ROUNDS_ADDRESS=${roundsAddress}`,
+    `POLL_INTERVAL_SECONDS=30`,
+  ].join("\n") + "\n";
+  fs.writeFileSync(botEnvPath, botEnvLines, "utf8");
+  console.log("✅ Written to bot/.env:", botEnvPath);
+
   // Also output for manual copy-paste
   console.log("\n--- Copy to frontend/src/config/contracts.ts ---");
   console.log(`export const PHANTOM_BET_ADDRESS = "${betAddress}" as const;`);

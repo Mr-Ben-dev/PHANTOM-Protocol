@@ -1,12 +1,13 @@
 ﻿/**
- * PHANTOM Protocol — Keeper Bot v2
+ * PHANTOM Protocol — Keeper Bot v3
  *
  * 24/7 automation for PhantomRounds:
  *  1. Auto-creates BTC/USD, ETH/USD, SOL/USD 5m rounds when none are OPEN
  *  2. Locks OPEN rounds when lockAt passes
  *  3. Resolves LOCKED rounds using live Binance prices + oracle signature
- *  4. Handles OPEN rounds that missed the lock step (direct resolve)
- *  5. Retries failed transactions once
+ *  4. Reveals pool totals via CoFHE after resolution
+ *  5. Handles OPEN rounds that missed the lock step (direct resolve)
+ *  6. Retries failed transactions once
  */
 
 import "dotenv/config";
@@ -21,6 +22,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
+import { decryptPublicHandle, ensureCofheConnected } from "./cofhe.js";
 
 const PRIVATE_KEY = (process.env.PRIVATE_KEY ?? "") as Hex;
 const RPC_URL = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
@@ -40,9 +42,13 @@ const walletClient = createWalletClient({ account, chain: arbitrumSepolia, trans
 const ABI = parseAbi([
   "function getRoundCount() view returns (uint256)",
   "function getRoundCore(uint256) view returns (bytes32 asset, uint32 intervalSeconds, uint64 startPrice, uint256 lockAt, uint256 settleAt, uint256 bettorCount, address creator, uint8 status)",
+  "function getRoundSettlement(uint256) view returns (uint64 endPrice, uint8 status, bool outcomeUp, bool poolsRevealed, uint64 upPool, uint64 downPool, uint64 totalPool, bytes32 oracleRoundId, uint256 observedAt)",
+  "function getUpPool(uint256 roundId) view returns (uint256)",
+  "function getDownPool(uint256 roundId) view returns (uint256)",
   "function oracleMessageHash(uint256 roundId, uint64 endPrice, uint256 observedAt) view returns (bytes32)",
   "function lockRound(uint256 roundId)",
   "function resolveRound(uint256 roundId, uint64 endPrice, uint256 observedAt, bytes oracleSignature)",
+  "function revealRoundPools(uint256 roundId, uint64 upPlaintext, bytes upSig, uint64 downPlaintext, bytes downSig)",
   "function createRound(bytes32 asset, uint32 intervalSeconds, uint64 startPrice, uint256 lockAt, uint256 settleAt, bytes32 oracleRoundId) returns (uint256)",
   "function roundBots(address) view returns (bool)",
   "function oracleSigners(address) view returns (bool)",
@@ -77,9 +83,6 @@ async function fetchPrice(symbol: string): Promise<number> {
 }
 
 async function signOracle(roundId: bigint, endPrice: bigint, observedAt: bigint): Promise<Hex> {
-  // oracleMessageHash() returns keccak256("PHANTOM_ROUND_ORACLE" || chainId || contract || ...)
-  // The contract then calls _toEthSignedMessageHash(hash) which prepends "\x19Ethereum Signed Message:\n32"
-  // before ecrecover. So we must use signMessage({ raw: hash }) which also prepends that prefix.
   const msgHash = await publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "oracleMessageHash", args: [roundId, endPrice, observedAt] });
   return oracleAccount.signMessage({ message: { raw: msgHash } });
 }
@@ -99,14 +102,54 @@ async function sendTx(label: string, fn: () => Promise<Hex>): Promise<Hex | null
   return null;
 }
 
+async function revealPoolsIfNeeded(roundId: bigint): Promise<void> {
+  const settlement = await publicClient.readContract({
+    address: ROUNDS_ADDRESS,
+    abi: ABI,
+    functionName: "getRoundSettlement",
+    args: [roundId],
+  });
+  const [, status, , poolsRevealed] = settlement;
+  if (Number(status) !== STATUS.RESOLVED || poolsRevealed) return;
+
+  log(`  [#${roundId}] Revealing encrypted pools via CoFHE...`);
+  await ensureCofheConnected(publicClient, walletClient);
+
+  const [upCtHash, downCtHash] = await Promise.all([
+    publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getUpPool", args: [roundId] }),
+    publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getDownPool", args: [roundId] }),
+  ]);
+
+  const up = await decryptPublicHandle(upCtHash);
+  const down = await decryptPublicHandle(downCtHash);
+
+  await sendTx(`revealRoundPools(${roundId})`, () =>
+    walletClient.writeContract({
+      address: ROUNDS_ADDRESS,
+      abi: ABI,
+      functionName: "revealRoundPools",
+      args: [roundId, up.value, up.signature, down.value, down.signature],
+    }),
+  );
+}
+
 async function processRound(roundId: bigint): Promise<void> {
   const [asset, , , lockAt, settleAt, , , status] = await publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getRoundCore", args: [roundId] });
   const assetStr = bytes32ToAsset(asset);
   const now = BigInt(Math.floor(Date.now() / 1000));
   const st = Number(status);
 
-  if (st === STATUS.NONE || st === STATUS.RESOLVED || st === STATUS.CANCELED) return;
-  if (st === STATUS.PENDING_REVEAL) { log(`  [#${roundId}] PENDING_REVEAL — awaiting CoFHE threshold decrypt`); return; }
+  if (st === STATUS.NONE || st === STATUS.CANCELED) return;
+
+  if (st === STATUS.RESOLVED) {
+    await revealPoolsIfNeeded(roundId);
+    return;
+  }
+
+  if (st === STATUS.PENDING_REVEAL) {
+    log(`  [#${roundId}] PENDING_REVEAL — manual revealRoundOutcome required (no public encOutcome getter)`);
+    return;
+  }
 
   if (st === STATUS.OPEN && now >= lockAt && now < settleAt) {
     log(`  [#${roundId}] Locking ${assetStr}...`);
@@ -147,7 +190,7 @@ async function autoCreateRounds(): Promise<void> {
   for (const { label, symbol, interval } of ROUND_CONFIGS) {
     if ([...openAssets].some((a) => a.toUpperCase().includes(symbol))) continue;
     let price: number;
-    try { price = await fetchPrice(symbol); } catch (err) { log(`  Auto-create ${label}: price fetch failed`); continue; }
+    try { price = await fetchPrice(symbol); } catch { log(`  Auto-create ${label}: price fetch failed`); continue; }
 
     const now = Math.floor(Date.now() / 1000);
     log(`  Auto-creating ${label} @ $${price.toLocaleString("en-US", { minimumFractionDigits: 2 })}...`);
@@ -160,7 +203,7 @@ async function autoCreateRounds(): Promise<void> {
           BigInt(now + interval), BigInt(now + interval + 60),
           encodeLabel(`${symbol}-5M-${now}`),
         ],
-      })
+      }),
     );
   }
 }
@@ -187,7 +230,7 @@ async function tick(): Promise<void> {
 }
 
 console.log("═".repeat(60));
-console.log("  PHANTOM Keeper Bot v2 — 24/7 round automation");
+console.log("  PHANTOM Keeper Bot v3 — 24/7 round automation");
 console.log(`  Keeper  : ${account.address}`);
 console.log(`  Contract: ${ROUNDS_ADDRESS}`);
 console.log(`  Poll    : ${POLL_MS / 1000}s`);

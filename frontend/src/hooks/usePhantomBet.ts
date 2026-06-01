@@ -94,7 +94,7 @@ export function usePhantomBet() {
         address: PHANTOM_BET_ADDRESS,
         abi: PHANTOM_BET_ABI,
         functionName: "revealPools",
-        args: [marketId, yesCtHash, yesPlaintext, noCtHash, noPlaintext, yesSignature, noSignature],
+        args: [marketId, yesCtHash, yesPlaintext, yesSignature, noCtHash, noPlaintext, noSignature],
         gasPrice,
       });
     },

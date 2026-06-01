@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { parseEther, formatEther } from "viem";
+import { parseEther } from "viem";
 import {
   Activity,
   CheckCircle2,
@@ -12,7 +12,6 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
-  Zap,
 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import { useWalletAuth } from "@/hooks/useWalletAuth";
 import { usePhantomRounds } from "@/hooks/usePhantomRounds";
 import { type Round, useRounds } from "@/hooks/useRounds";
 import { useLivePrice } from "@/hooks/useLivePrice";
+import { RoundPositionActions } from "@/components/rounds/RoundPositionActions";
 
 const container = {
   hidden: {},
@@ -69,7 +69,7 @@ function intervalLabel(seconds: number) {
 const Rounds = () => {
   const { address, isConnected, connect } = useWalletAuth();
   const { rounds, isLoading, configured, refetch } = useRounds();
-  const { createRound, placeRoundBetSimple, claimRoundPayout, refundCanceledRound } = usePhantomRounds();
+  const { createRound, placeRoundBetSimple } = usePhantomRounds();
   const { prices, connected: wsConnected } = useLivePrice();
 
   const [activeTab, setActiveTab] = useState<"open" | "locked" | "resolved" | "mine">("open");
@@ -81,7 +81,7 @@ const Rounds = () => {
     asset: "BTC/USD",
     interval: "300",
     startPrice: "",
-    lockDelay: "60",
+    lockDelay: "300",
     settleDelay: "360",
     oracleRoundId: "BTC-5M-1",
   });
@@ -171,34 +171,6 @@ const Rounds = () => {
       setMessage(err instanceof Error ? err.message : "Round creation failed.");
     } finally {
       setOperatorBusy(false);
-    }
-  };
-
-  const handleClaim = async (roundId: bigint) => {
-    setBusyRound(String(roundId));
-    setMessage(null);
-    try {
-      const txHash = await claimRoundPayout(roundId);
-      setMessage(`Payout claimed: ${txHash}`);
-      refetch();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Claim failed.");
-    } finally {
-      setBusyRound(null);
-    }
-  };
-
-  const handleRefund = async (roundId: bigint) => {
-    setBusyRound(String(roundId));
-    setMessage(null);
-    try {
-      const txHash = await refundCanceledRound(roundId);
-      setMessage(`Refunded: ${txHash}`);
-      refetch();
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Refund failed.");
-    } finally {
-      setBusyRound(null);
     }
   };
 
@@ -437,30 +409,15 @@ const Rounds = () => {
                           >
                             <TrendingDown className="w-4 h-4" /> DOWN
                           </Button>
-                          {round.hasBet && round.status === 3 && round.poolsRevealed && !round.hasClaimed && (
-                            <Button
-                              variant="hero"
-                              size="sm"
-                              className="gap-2"
-                              disabled={busy}
-                              onClick={() => handleClaim(round.id)}
-                            >
-                              <Zap className="w-4 h-4" /> Claim
-                            </Button>
+                          {round.hasBet && (
+                            <RoundPositionActions
+                              round={round}
+                              busy={busy}
+                              onBusyChange={(v) => setBusyRound(v ? roundKey : null)}
+                              onMessage={setMessage}
+                              onDone={refetch}
+                            />
                           )}
-                          {round.hasBet && round.status === 4 && !round.hasClaimed && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                              disabled={busy}
-                              onClick={() => handleRefund(round.id)}
-                            >
-                              Refund
-                            </Button>
-                          )}
-                          {round.hasBet && <span className="text-xs text-primary font-mono flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> SEALED</span>}
-                          {round.hasClaimed && <span className="text-xs text-emerald-400 font-mono">CLAIMED</span>}
                         </div>
                       </motion.article>
                     );
@@ -510,7 +467,7 @@ const Rounds = () => {
                           ? "border-primary/30 bg-primary/10 text-primary"
                           : "border-border/30 text-muted-foreground hover:text-foreground"
                       }`}
-                      onClick={() => setOperatorForm((prev) => ({ ...prev, interval: "300", lockDelay: "60", settleDelay: "360" }))}
+                      onClick={() => setOperatorForm((prev) => ({ ...prev, interval: "300", lockDelay: "300", settleDelay: "360" }))}
                     >
                       5m
                     </button>
@@ -520,7 +477,7 @@ const Rounds = () => {
                           ? "border-primary/30 bg-primary/10 text-primary"
                           : "border-border/30 text-muted-foreground hover:text-foreground"
                       }`}
-                      onClick={() => setOperatorForm((prev) => ({ ...prev, interval: "900", lockDelay: "60", settleDelay: "960" }))}
+                      onClick={() => setOperatorForm((prev) => ({ ...prev, interval: "900", lockDelay: "900", settleDelay: "960" }))}
                     >
                       15m
                     </button>

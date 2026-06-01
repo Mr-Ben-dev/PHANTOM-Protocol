@@ -60,6 +60,15 @@ async function main() {
   fs.writeFileSync(frontendEnvPath, existing + `VITE_PHANTOM_MULTI_ADDRESS=${multiAddress}\n`, "utf8");
   console.log("\n✅ Written VITE_PHANTOM_MULTI_ADDRESS to frontend/.env");
 
+  const botEnvPath = path.resolve(__dirname, "../bot/.env");
+  if (fs.existsSync(botEnvPath)) {
+    let botEnv = fs.readFileSync(botEnvPath, "utf8");
+    botEnv = botEnv.split("\n").filter((l) => !l.startsWith("PHANTOM_MULTI_ADDRESS=")).join("\n");
+    if (!botEnv.endsWith("\n")) botEnv += "\n";
+    fs.writeFileSync(botEnvPath, botEnv + `PHANTOM_MULTI_ADDRESS=${multiAddress}\n`, "utf8");
+    console.log("✅ Written PHANTOM_MULTI_ADDRESS to bot/.env");
+  }
+
   // ──────────────────────────────────────────────────────────────
   // Print update for contracts.ts
   // ──────────────────────────────────────────────────────────────

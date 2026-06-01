@@ -1,131 +1,120 @@
 # PHANTOM Protocol
 
-**The world's first fully homomorphically encrypted prediction market + price-round engine.**
-Wave 3 — Live on Arbitrum Sepolia | [Live Demo](https://phantom-protocol-chi.vercel.app/)
+**Fully homomorphic encrypted prediction markets and automated price rounds — live on Arbitrum Sepolia.**
+
+[Live Demo](https://phantom-protocol-chi.vercel.app/) · [GitHub](https://github.com/Mr-Ben-dev/PHANTOM-Protocol)
 
 ---
 
 ## The Problem
 
-On transparent blockchains, every bet — amount, direction, timing — is publicly visible. MEV bots front-run from the mempool, whales copy institutional forecasts, pool depths expose real-time sentiment. The moment a sophisticated analyst bets, their thesis becomes public signal.
-
-The only solution is a cryptographic primitive that enables computation on data without ever revealing it.
+On transparent blockchains, every bet exposes amount, direction, timing, and pool sentiment. MEV bots front-run mempool transactions. Whales counter-trade visible positions. Analysts leak alpha the moment they bet. Public pool depths become real-time trading signals. Traditional prediction markets cannot protect strategic information.
 
 ---
 
-## The Solution: Fully Homomorphic Encryption
+## The Solution
 
-PHANTOM uses **FHE** — the only scheme enabling computation directly on ciphertext, without decryption. Bets are encrypted before leaving your browser. The smart contract operates entirely on encrypted ciphertext. Pool totals stay encrypted until resolution; individual bets stay private permanently. FHE is real computation on real secrets.
-
----
-
-## Wave 1: PhantomBet — Binary Prediction Markets
-
-Fully encrypted YES/NO prediction markets using Fhenix CoFHE.
-
-- `FHE.select()` routes each bet on encrypted direction — contract never sees which side you chose
-- `FHE.add()` accumulates pool totals on `euint64` handles; CoFHE threshold-decryption reveals only the winning aggregate at close — individual positions stay private forever
-
-**8 real markets seeded on-chain:**
-
-1. Will Bitcoin reach $150,000 by December 2026?
-2. Will Ethereum break $5,000 in Q3 2026?
-3. Will the US Federal Reserve cut rates before August 2026?
-4. Will Solana flip Ethereum by market cap before end of 2026?
-5. Will DeFi total TVL exceed $200B by end of 2026?
-6. Will any AI token enter the crypto top 10 by market cap in Q3 2026?
-7. Will Bitcoin spot ETF daily inflows exceed $1B in a single day in 2026?
-8. Will Ethereum Layer 2 total TVL surpass $100B by September 2026?
+PHANTOM runs market logic on **Fully Homomorphic Encryption (FHE)** through the **Fhenix CoFHE** coprocessor. Smart contracts accumulate encrypted pools, route bets, compare prices, and settle payouts on ciphertext. Individual positions stay private; only authorized aggregates are revealed at resolution.
 
 ---
 
-## Wave 2: PhantomToken ($PHTM)
+## What Is Built
 
-PHANTOM's native FHERC20. Balances are `euint64` ciphertexts; only ACL-permitted parties can read them. Invisible transfers, standard ERC20 interface.
+PHANTOM is a complete encrypted market stack with four deployed contracts, a production frontend, keeper automation, and 120 passing tests.
 
----
+### PhantomBet — Binary Markets
 
-## Wave 3: PhantomRounds — Automated Price-Round Engine
+Encrypted YES/NO prediction markets. Users encrypt amount and direction in the browser via `@cofhe/sdk`. The contract routes stakes with `FHE.select` and accumulates with `FHE.add`. Ten real markets live on testnet (BTC $150K, ETH $5K, Fed rates, SOL flip, DeFi TVL, AI tokens, BTC ETF, L2 TVL).
 
-Automated price-round markets on live Binance prices. Bet UP or DOWN on BTC, ETH, or SOL in 5m/15m windows. Keeper bot (`bot/keeper.ts`) polls every 30s:
+### PhantomToken ($PHTM)
 
-1. **Create** — opens round with Binance `startPrice`, sets `lockAt` and `settleAt`
-2. **Lock** — calls `lockRound()` at `lockAt`; no new bets accepted
-3. **Resolve** — computes EIP-191 oracle hash, calls `resolveRound()`. `FHE.gte(encEndPrice, encStartPrice)` evaluates outcome entirely on ciphertext.
-4. **Claim** — `revealMyDirection()` then `claimRoundPayout()`. 3% fee; 97% to winners.
+FHERC20 confidential token. Balances are `euint64` ciphertexts with ACL-controlled access. Indicator-based `balanceOf` preserves ERC20 compatibility without leaking real balances.
 
-Oracle: `keccak256("PHANTOM_ROUND_ORACLE" || chainId || contract || roundId || endPrice || observedAt)`, verified by ecrecover (EIP-191). Direction: `FHE.asEbool(isUp)` on-chain — no SDK, any EVM wallet.
+### PhantomRounds — Price-Round Engine
 
----
+Polymarket-style UP/DOWN rounds on BTC, ETH, and SOL in 5m/15m windows. Encrypted pool totals. Oracle-signed Binance settlement (EIP-191). Keeper Bot v3 automates create → lock → resolve → **CoFHE pool reveal**. Users reveal direction then claim ETH (97% to winners, 3% protocol fee). Live Binance WebSocket prices in the UI.
 
-## Contract Architecture
+### PhantomMulti — Multi-Outcome Markets
 
-**PhantomACL.sol** — FHE ACL + roles: CREATOR, BETTOR, RESOLVER, AUDITOR.
-
-**PhantomBet.sol** — `createMarket`, `placeBet` (FHE.select), `resolveMarket`, `revealPools` (ECDSA), `claimPayout`. Solidity 0.8.25, `viaIR: true`, `evmVersion: cancun`.
-
-**PhantomToken.sol** — $PHTM FHERC20. Balances are `euint64` ciphertexts; only ACL-permitted addresses can read them.
-
-**PhantomRounds.sol** — 6 statuses (NONE/OPEN/LOCKED/RESOLVED/CANCELED/PENDING_REVEAL). Encrypted `euint64` pools, `ebool` outcomes. EIP-191 oracle sig. 54 tests.
+Two to eight outcomes per market. Encrypted pools and bet amounts. Five seeded markets on testnet. Full bet → resolve → reveal → claim flow in the `/multi` page.
 
 ---
 
-## Deployed Addresses (Arbitrum Sepolia, Chain ID 421614)
+## Architecture
 
-| Contract | Address |
-|---|---|
-| PhantomBet | `0x31a578f2c63a85Ae13E1e12A859a2B5f775De228` |
-| PhantomToken ($PHTM) | `0x78AF03022b1cD35e75642Ac2A043a6d2cE472228` |
-| PhantomRounds | `0x76db8a0429d19e8440e3D290F79c0613834c72a1` |
+```
+Browser (React + CoFHE SDK)
+    ↓ encrypted inputs + wallet txs
+Arbitrum Sepolia Contracts (PhantomBet · PhantomToken · PhantomRounds · PhantomMulti)
+    ↓ FHE ops + ACL
+Fhenix CoFHE Threshold Network
+    ↓ threshold decrypt + signatures
+On-chain publishDecryptResult → settlement
+```
 
-Deployer / Keeper: `0x18398aA1dFdA63F30529c46E90ac41c1E75F7Ecf`
+**Keeper Bot** polls every 30s: creates rounds, locks, resolves with signed oracle prices, and reveals encrypted pools via CoFHE — enabling continuous round operation without manual intervention.
 
 ---
 
 ## Privacy Boundary
 
-| Always Public | Always Encrypted |
+| Public | Encrypted |
 |---|---|
-| Market questions & metadata | Individual bet amounts |
-| Bettor count (not identities) | Individual bet directions |
-| Resolved outcome (YES/NO, UP/DOWN) | Pool totals (before resolution) |
-| Pool totals (after resolution only) | Personal payout amounts & $PHTM balances |
+| Questions, assets, deadlines | Bet amounts and directions |
+| Bettor counts | Pool totals before resolution |
+| Final outcomes | Personal balances ($PHTM) |
+| Aggregate pools after CoFHE reveal | Individual payout paths pre-claim |
+
+---
+
+## Deployed Contracts (Arbitrum Sepolia · 421614)
+
+| Contract | Address |
+|---|---|
+| PhantomBet | `0x31a578f2c63a85Ae13E1e12A859a2B5f775De228` |
+| PhantomToken | `0x78AF03022b1cD35e75642Ac2A043a6d2cE472228` |
+| PhantomRounds | `0x76db8a0429d19e8440e3D290F79c0613834c72a1` |
+| PhantomMulti | `0x674200f50Ee8816355dB3105d06fF799d15720F3` |
+
+Keeper: `0x18398aA1dFdA63F30529c46E90ac41c1E75F7Ecf`
 
 ---
 
 ## Frontend
 
-React 18 + Vite 5 + TypeScript · wagmi 3.x + viem 2.x · @cofhe/sdk 0.4.0 · shadcn/ui + Tailwind · framer-motion · Binance WebSocket live prices.
+React 18 · Vite 5 · wagmi 3.x · viem · @cofhe/sdk · shadcn/ui · Tailwind
 
-**Pages:** Markets (3-col grid, inline detail panel), Rounds (price-round betting + operator console), Positions (decryption), Docs.
+**Pages:** Markets · Rounds · Multi · Positions · Docs
 
----
+**Production features:** wallet connect, chain switching, CoFHE init, encrypted betting, round claim flow (reveal pools → reveal direction → claim), live prices, operator console, multi-outcome betting.
 
-## Five Waves
-
-| Wave | Module | Status | Description |
-|---|---|---|---|
-| 1 | PhantomBet | ✅ Live | Binary encrypted prediction markets |
-| 2 | PhantomToken | ✅ Live | FHERC20 encrypted native token |
-| 3 | PhantomRounds | ✅ Live | Price-round engine, keeper bot, 8 live markets |
-| 4 | PhantomMulti | Upcoming | Multi-outcome encrypted markets (210 buckets) |
-| 5 | PhantomOracle | Research | AI resolution on encrypted oracle feeds |
+**Live:** https://phantom-protocol-chi.vercel.app/
 
 ---
 
-## Why This Changes Markets
+## Production Readiness (Completed)
 
-When pool sentiment is invisible, it cannot be front-run. When bet directions are encrypted, strategies cannot be copied. When resolution reveals only aggregates, losers never expose their models. Funds, quant traders, and analysts who avoid transparent markets can now participate without broadcasting their thesis — market accuracy improves and liquidity deepens.
+End-to-end audit verified and fixed:
 
-PHANTOM proves FHE is not merely a privacy feature. It is a new market design primitive — a category of financial product that cannot exist without it.
+- Keeper auto-reveals pools after round resolution
+- Frontend + CLI complete claim lifecycle
+- PhantomBet pool reveal ABI fix
+- PhantomMulti deployed and seeded
+- All env files synchronized across frontend, bot, and contract fallbacks
+- 120 Hardhat tests passing · frontend build verified
+
+See `RELEASE_REPORT.md` for full audit details.
 
 ---
 
-## Built With
+## Tech Stack
 
-Fhenix CoFHE · @fhenixprotocol/cofhe-contracts · @cofhe/sdk · wagmi 3.x + viem 2.x · React 18 + Vite 5 · Hardhat · TypeScript
+Solidity 0.8.25 · Hardhat · @fhenixprotocol/cofhe-contracts · @cofhe/sdk · TypeScript · React · Vite · wagmi · viem · Binance API
 
-Live Demo: https://phantom-protocol-chi.vercel.app/
-GitHub: https://github.com/Mr-Ben-dev/PHANTOM-Protocol
+---
+
+## Why It Matters
+
+When pool sentiment is invisible, it cannot be front-run. When directions are encrypted, strategies cannot be copied. When resolution reveals only aggregates, losers never expose their models. PHANTOM proves FHE is not just privacy — it is a new market design primitive for financial products that cannot exist on transparent chains.
 
 *"A phantom exists but cannot be observed. Your position is real — but invisible on-chain."*

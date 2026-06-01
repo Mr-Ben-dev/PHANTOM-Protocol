@@ -12,6 +12,8 @@
  *   npx tsx cli.ts bet 1 down 0.01
  *   npx tsx cli.ts lock 0
  *   npx tsx cli.ts resolve 0
+ *   npx tsx cli.ts reveal-pools 0
+ *   npx tsx cli.ts reveal-direction 0 up
  *   npx tsx cli.ts claim 0
  *   npx tsx cli.ts cancel 0
  */
@@ -30,6 +32,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
+import { decryptPermittedBool, decryptPublicHandle, ensureCofheConnected } from "./cofhe.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -64,13 +67,19 @@ const ABI = parseAbi([
   "function placeRoundBetSimple(uint256 roundId, bool isUp) payable",
   "function lockRound(uint256 roundId)",
   "function resolveRound(uint256 roundId, uint64 endPrice, uint256 observedAt, bytes oracleSignature)",
+  "function revealRoundPools(uint256 roundId, uint64 upPlaintext, bytes upSig, uint64 downPlaintext, bytes downSig)",
+  "function revealMyDirection(uint256 roundId, bool directionUp, bytes sig)",
+  "function getUpPool(uint256 roundId) view returns (uint256)",
+  "function getDownPool(uint256 roundId) view returns (uint256)",
+  "function getRoundDirection(uint256 roundId) view returns (uint256)",
+  "function getRoundEth(uint256 roundId) view returns (uint256 totalEth, uint256 userStake)",
   "function claimRoundPayout(uint256 roundId)",
   "function cancelRound(uint256 roundId, string reason)",
   "function roundBots(address) view returns (bool)",
   "function oracleSigners(address) view returns (bool)",
   "function ethStakes(uint256, address) view returns (uint256)",
   "function hasRoundClaimed(uint256, address) view returns (bool)",
-  "function totalEth(uint256) view returns (uint256)",
+  "function directionRevealed(uint256, address) view returns (bool)",
 ]);
 
 const STATUS_LABELS = ["NONE", "OPEN", "LOCKED", "RESOLVED", "CANCELED", "PENDING_REVEAL"];
@@ -274,8 +283,58 @@ async function cmdResolve(roundId: number) {
   console.log(`  🔍 https://sepolia.arbiscan.io/tx/${hash}\n`);
 }
 
+async function cmdRevealPools(roundId: number) {
+  console.log(`\nRevealing pools for round #${roundId} via CoFHE...`);
+  await ensureCofheConnected(pub, wal);
+
+  const [upCtHash, downCtHash] = await Promise.all([
+    pub.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getUpPool", args: [BigInt(roundId)] }),
+    pub.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getDownPool", args: [BigInt(roundId)] }),
+  ]);
+
+  const up = await decryptPublicHandle(upCtHash);
+  const down = await decryptPublicHandle(downCtHash);
+
+  const gasPrice = (await pub.getGasPrice() * 13n) / 10n;
+  const hash = await wal.writeContract({
+    address: ROUNDS_ADDRESS, abi: ABI,
+    functionName: "revealRoundPools",
+    args: [BigInt(roundId), up.value, up.signature, down.value, down.signature],
+    gasPrice,
+  });
+  console.log(`  ✅ Pools revealed! tx=${hash}`);
+  console.log(`  UP=${up.value}gwei  DOWN=${down.value}gwei`);
+  console.log(`  🔍 https://sepolia.arbiscan.io/tx/${hash}\n`);
+}
+
+async function cmdRevealDirection(roundId: number, isUp: boolean) {
+  console.log(`\nRevealing direction for round #${roundId}: ${isUp ? "UP" : "DOWN"}...`);
+  await ensureCofheConnected(pub, wal);
+
+  const directionCtHash = await pub.readContract({
+    address: ROUNDS_ADDRESS, abi: ABI, functionName: "getRoundDirection", args: [BigInt(roundId)], account: account.address,
+  });
+
+  const decrypted = await decryptPermittedBool(directionCtHash);
+
+  if (decrypted.directionUp !== isUp) {
+    console.warn(`  ⚠ Decrypted direction is ${decrypted.directionUp ? "UP" : "DOWN"} (you passed ${isUp ? "UP" : "DOWN"})`);
+  }
+
+  const gasPrice = (await pub.getGasPrice() * 13n) / 10n;
+  const hash = await wal.writeContract({
+    address: ROUNDS_ADDRESS, abi: ABI,
+    functionName: "revealMyDirection",
+    args: [BigInt(roundId), decrypted.directionUp, decrypted.signature],
+    gasPrice,
+  });
+  console.log(`  ✅ Direction revealed! tx=${hash}`);
+  console.log(`  🔍 https://sepolia.arbiscan.io/tx/${hash}\n`);
+}
+
 async function cmdClaim(roundId: number) {
   console.log(`\nClaiming payout for round #${roundId}...`);
+  console.log("  (Requires reveal-pools + reveal-direction first)");
   const gasPrice = (await pub.getGasPrice() * 13n) / 10n;
   const hash = await wal.writeContract({
     address: ROUNDS_ADDRESS, abi: ABI,
@@ -315,7 +374,9 @@ const HELP = `
   npx tsx cli.ts bet <roundId> down <eth> — bet DOWN on round
   npx tsx cli.ts lock <roundId>           — lock round (bot/owner only)
   npx tsx cli.ts resolve <roundId>        — resolve with live Binance price
-  npx tsx cli.ts claim <roundId>          — claim winning payout
+  npx tsx cli.ts reveal-pools <roundId>   — CoFHE decrypt + reveal pool totals
+  npx tsx cli.ts reveal-direction <roundId> up|down — reveal your bet direction
+  npx tsx cli.ts claim <roundId>          — claim winning payout (after reveals)
   npx tsx cli.ts cancel <roundId>         — cancel round (owner only)
 
   Requires bot/.env with PRIVATE_KEY, PHANTOM_ROUNDS_ADDRESS, RPC_URL
@@ -341,6 +402,16 @@ try {
     await cmdLock(parseInt(args[0]));
   } else if (cmd === "resolve") {
     await cmdResolve(parseInt(args[0]));
+  } else if (cmd === "reveal-pools") {
+    await cmdRevealPools(parseInt(args[0]));
+  } else if (cmd === "reveal-direction") {
+    const roundId = parseInt(args[0]);
+    const isUp = args[1]?.toLowerCase() === "up";
+    if (isNaN(roundId) || !args[1]) {
+      console.error("Usage: reveal-direction <roundId> up|down");
+      process.exit(1);
+    }
+    await cmdRevealDirection(roundId, isUp);
   } else if (cmd === "claim") {
     await cmdClaim(parseInt(args[0]));
   } else if (cmd === "cancel") {

@@ -12,21 +12,21 @@
 // ─── Addresses ──────────────────────────────────────────────────────────────
 
 export const PHANTOM_BET_ADDRESS =
-  (import.meta.env.VITE_PHANTOM_BET_ADDRESS as `0x${string}`) ||
+  (import.meta.env.VITE_PHANTOM_BET_ADDRESS as `0x${string}` | undefined) ??
   "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228";
 
 export const PHANTOM_TOKEN_ADDRESS =
-  (import.meta.env.VITE_PHANTOM_TOKEN_ADDRESS as `0x${string}`) ||
+  (import.meta.env.VITE_PHANTOM_TOKEN_ADDRESS as `0x${string}` | undefined) ??
   "0x78AF03022b1cD35e75642Ac2A043a6d2cE472228";
 
 export const PHANTOM_ROUNDS_ADDRESS =
-  (import.meta.env.VITE_PHANTOM_ROUNDS_ADDRESS as `0x${string}`) ||
+  (import.meta.env.VITE_PHANTOM_ROUNDS_ADDRESS as `0x${string}` | undefined) ??
   "0x76db8a0429d19e8440e3D290F79c0613834c72a1";
 
 // Wave 4 — PhantomMulti (address populated after deployment)
 export const PHANTOM_MULTI_ADDRESS =
-  (import.meta.env.VITE_PHANTOM_MULTI_ADDRESS as `0x${string}`) ||
-  "0x0000000000000000000000000000000000000000";
+  (import.meta.env.VITE_PHANTOM_MULTI_ADDRESS as `0x${string}` | undefined) ??
+  "0x674200f50Ee8816355dB3105d06fF799d15720F3";
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 

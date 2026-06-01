@@ -37,6 +37,8 @@ export interface Round {
   observedAt: bigint;
   hasBet: boolean;
   hasClaimed: boolean;
+  directionRevealed: boolean;
+  revealedDirectionUp: boolean;
 }
 
 type RoundCoreResult = readonly [
@@ -126,6 +128,18 @@ export function useRounds() {
               functionName: "hasRoundClaimed" as const,
               args: [id, address] as const,
             },
+            {
+              address: PHANTOM_ROUNDS_ADDRESS,
+              abi: PHANTOM_ROUNDS_ABI,
+              functionName: "directionRevealed" as const,
+              args: [id, address] as const,
+            },
+            {
+              address: PHANTOM_ROUNDS_ADDRESS,
+              abi: PHANTOM_ROUNDS_ABI,
+              functionName: "revealedDirections" as const,
+              args: [id, address] as const,
+            },
           ]
         : []),
     ];
@@ -140,7 +154,7 @@ export function useRounds() {
     query: { enabled: configured && countN > 0 },
   });
 
-  const stride = address ? 4 : 2;
+  const stride = address ? 6 : 2;
   const rounds: Round[] = [];
 
   for (let i = 0; i < countN; i++) {
@@ -170,6 +184,8 @@ export function useRounds() {
       observedAt: BigInt(settlement[8]),
       hasBet: address ? Boolean(batchData?.[i * stride + 2]?.result) : false,
       hasClaimed: address ? Boolean(batchData?.[i * stride + 3]?.result) : false,
+      directionRevealed: address ? Boolean(batchData?.[i * stride + 4]?.result) : false,
+      revealedDirectionUp: address ? Boolean(batchData?.[i * stride + 5]?.result) : false,
     });
   }
 
