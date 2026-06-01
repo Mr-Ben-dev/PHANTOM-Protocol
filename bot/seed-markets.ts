@@ -1,7 +1,7 @@
 /**
  * PHANTOM Protocol — Market Seed Script
  *
- * Creates 8 real prediction markets on PhantomBet (Arbitrum Sepolia).
+ * Creates 10 real prediction markets on PhantomBet (Arbitrum Sepolia).
  * Uses PRIVATE_KEY from bot/.env (deployer wallet, already authorized).
  *
  * Run from the /bot directory:
@@ -12,22 +12,21 @@ import "dotenv/config";
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   type Address,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
+import { arbSepoliaTransport } from "./rpc.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PRIVATE_KEY = (process.env.PRIVATE_KEY ?? "") as Hex;
-const RPC_URL = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
 
 // PhantomBet contract (Wave 1 prediction markets)
 const PHANTOM_BET_ADDRESS = (
-  process.env.PHANTOM_BET_ADDRESS ?? "0x31a578f2c63a85Ae13E1e12A859a2B5f775De228"
+  process.env.PHANTOM_BET_ADDRESS ?? "0x561428264991044f47705C92CE482E37C9cD71b7"
 ) as Address;
 
 if (!PRIVATE_KEY.startsWith("0x")) {
@@ -36,8 +35,9 @@ if (!PRIVATE_KEY.startsWith("0x")) {
 }
 
 const account = privateKeyToAccount(PRIVATE_KEY);
-const pub = createPublicClient({ chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 20_000 }) });
-const wal = createWalletClient({ account, chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 30_000 }) });
+const transport = arbSepoliaTransport();
+const pub = createPublicClient({ chain: arbitrumSepolia, transport });
+const wal = createWalletClient({ account, chain: arbitrumSepolia, transport });
 
 const ABI = parseAbi([
   "function getMarketCount() view returns (uint256)",
@@ -96,6 +96,16 @@ const MARKETS = [
     question: "Will Ethereum Layer 2 total TVL surpass $100B by September 2026?",
     deadline: ts("2026-09-30T00:00:00Z"),
     resolutionTime: tsPlus7("2026-09-30T00:00:00Z"),
+  },
+  {
+    question: "Will NVIDIA surpass Apple as the world's most valuable company by June 2026?",
+    deadline: ts("2026-06-30T00:00:00Z"),
+    resolutionTime: tsPlus7("2026-06-30T00:00:00Z"),
+  },
+  {
+    question: "Will a spot Solana ETF be approved in the United States before December 2026?",
+    deadline: ts("2026-12-31T00:00:00Z"),
+    resolutionTime: tsPlus7("2026-12-31T00:00:00Z"),
   },
 ];
 

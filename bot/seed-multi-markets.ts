@@ -1,7 +1,7 @@
 /**
  * PHANTOM Protocol — Multi-Outcome Market Seed Script
  *
- * Creates 5 multi-outcome prediction markets on PhantomMulti (Arbitrum Sepolia).
+ * Creates 10 multi-outcome prediction markets on PhantomMulti (Arbitrum Sepolia).
  * Uses PRIVATE_KEY from bot/.env (deployer wallet, already authorized).
  *
  * Run from the /bot directory:
@@ -12,18 +12,17 @@ import "dotenv/config";
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   type Address,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
+import { arbSepoliaTransport } from "./rpc.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PRIVATE_KEY = (process.env.PRIVATE_KEY ?? "") as Hex;
-const RPC_URL = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
 
 const PHANTOM_MULTI_ADDRESS = (
   process.env.PHANTOM_MULTI_ADDRESS ?? ""
@@ -40,14 +39,15 @@ if (!PHANTOM_MULTI_ADDRESS.startsWith("0x")) {
 }
 
 const account = privateKeyToAccount(PRIVATE_KEY);
+const transport = arbSepoliaTransport();
 const pub = createPublicClient({
   chain: arbitrumSepolia,
-  transport: http(RPC_URL, { timeout: 20_000 }),
+  transport,
 });
 const wal = createWalletClient({
   account,
   chain: arbitrumSepolia,
-  transport: http(RPC_URL, { timeout: 30_000 }),
+  transport,
 });
 
 const ABI = parseAbi([
@@ -95,6 +95,36 @@ const MARKETS = [
     labels: ["Below $100", "$100 – $200", "$200 – $300", "Above $300"],
     deadline: daysFromNow(200),
     resolutionTime: daysFromNow(204),
+  },
+  {
+    question: "Which Layer-2 will hold the highest TVL at end of Q2 2026?",
+    labels: ["Arbitrum", "Base", "Optimism", "zkSync"],
+    deadline: daysFromNow(120),
+    resolutionTime: daysFromNow(127),
+  },
+  {
+    question: "What will the next US CPI inflation print (YoY) be?",
+    labels: ["Below 2.0%", "2.0% – 2.5%", "2.5% – 3.0%", "Above 3.0%"],
+    deadline: daysFromNow(45),
+    resolutionTime: daysFromNow(48),
+  },
+  {
+    question: "Which stablecoin will have the largest market cap in 2026?",
+    labels: ["USDT", "USDC", "DAI", "Other"],
+    deadline: daysFromNow(180),
+    resolutionTime: daysFromNow(187),
+  },
+  {
+    question: "How many Fed rate cuts will occur in calendar year 2026?",
+    labels: ["0", "1–2", "3–4", "5+"],
+    deadline: daysFromNow(200),
+    resolutionTime: daysFromNow(207),
+  },
+  {
+    question: "Which chain will process the most daily transactions in Q3 2026?",
+    labels: ["Ethereum", "Solana", "Base", "BNB Chain"],
+    deadline: daysFromNow(150),
+    resolutionTime: daysFromNow(157),
   },
 ];
 
