@@ -13,9 +13,19 @@ export async function connectCofhe(
   publicClient: PublicClient,
   walletClient: WalletClient,
 ): Promise<void> {
-  if (walletClient === _lastWallet) return; // nothing changed
-  await cofheClient.connect(publicClient as never, walletClient as never);
-  _lastWallet = walletClient;
+  if (walletClient !== _lastWallet) {
+    await cofheClient.connect(publicClient as never, walletClient as never);
+    _lastWallet = walletClient;
+  }
+  await ensureCofhePermit();
+}
+
+/** EIP-712 self-permit required before decryptForView (see cofhe-docs.fhenix.zone). */
+export async function ensureCofhePermit(): Promise<void> {
+  if (!cofheClient.connected) {
+    throw new Error("Connect wallet on Arbitrum Sepolia before decrypting.");
+  }
+  await cofheClient.permits.getOrCreateSelfPermit();
 }
 
 export function getCofheClient() {
