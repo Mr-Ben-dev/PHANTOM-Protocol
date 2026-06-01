@@ -22,7 +22,6 @@ import "dotenv/config";
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   parseEther,
   formatEther,
@@ -33,6 +32,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import { decryptPermittedBool, decryptPublicHandle, ensureCofheConnected } from "./cofhe.js";
+import { arbSepoliaTransport } from "./rpc.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -53,8 +53,9 @@ const ORACLE_KEY = ((process.env.ORACLE_SIGNER_KEY || PRIVATE_KEY) as Hex);
 const account = privateKeyToAccount(PRIVATE_KEY);
 const oracleAccount = privateKeyToAccount(ORACLE_KEY);
 
-const pub = createPublicClient({ chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 20_000 }) });
-const wal = createWalletClient({ account, chain: arbitrumSepolia, transport: http(RPC_URL, { timeout: 30_000 }) });
+const transport = arbSepoliaTransport();
+const pub = createPublicClient({ chain: arbitrumSepolia, transport });
+const wal = createWalletClient({ account, chain: arbitrumSepolia, transport });
 
 // ─── ABI ─────────────────────────────────────────────────────────────────────
 

@@ -20,7 +20,8 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `PRIVATE_KEY` | `0x...` — deployer / keeper wallet key |
-| `RPC_URL` | Arbitrum Sepolia RPC (default: public endpoint) |
+| `RPC_URL` | Primary RPC (default: public Arbitrum Sepolia) |
+| `RPC_URL_FALLBACK` | Fallback RPC (default: Alchemy in `rpc.ts`) |
 | `PHANTOM_ROUNDS_ADDRESS` | Deployed contract address |
 | `ORACLE_SIGNER_KEY` | Optional — separate oracle signing key |
 | `POLL_INTERVAL_SECONDS` | Tick frequency (default: 30s) |
