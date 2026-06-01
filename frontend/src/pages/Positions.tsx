@@ -5,6 +5,7 @@ import Navbar from "@/components/shared/Navbar";
 import { PositionPanel } from "@/components/markets/PositionPanel";
 import { RoundPositionActions } from "@/components/rounds/RoundPositionActions";
 import { useMarkets } from "@/hooks/useMarkets";
+import { useMultiMarkets } from "@/hooks/useMultiMarkets";
 import { useRounds } from "@/hooks/useRounds";
 import { useWalletAuth } from "@/hooks/useWalletAuth";
 
@@ -38,6 +39,16 @@ function RoundPositionCard({
           {round.statusLabel}
         </span>
       </div>
+      {round.status === 3 && (
+        <p className="text-sm text-muted-foreground">
+          Outcome: <span className={round.outcomeUp ? "text-emerald-400" : "text-red-400"}>
+            {round.outcomeUp ? "UP ↑" : "DOWN ↓"}
+          </span>
+          {round.poolsRevealed && (
+            <span className="text-muted-foreground"> · pools on-chain</span>
+          )}
+        </p>
+      )}
       {message && <p className="text-xs text-muted-foreground break-all">{message}</p>}
       <RoundPositionActions
         round={round}
@@ -45,6 +56,7 @@ function RoundPositionCard({
         onBusyChange={setBusy}
         onMessage={setMessage}
         onDone={onDone}
+        stacked
       />
     </motion.div>
   );
@@ -53,11 +65,12 @@ function RoundPositionCard({
 const Positions = () => {
   const { address, isConnected, connect } = useWalletAuth();
   const { markets, isLoading, refetch } = useMarkets();
+  const { markets: multiMarkets, isLoading: multiLoading, refetch: refetchMulti } = useMultiMarkets();
   const { rounds, isLoading: roundsLoading, refetch: refetchRounds, configured: roundsConfigured } = useRounds();
 
-  // Only show markets where this wallet has placed a bet
   const myMarkets = markets.filter((m) => m.hasBet);
   const myRounds = rounds.filter((r) => r.hasBet);
+  const myMulti = multiMarkets.filter((m) => m.hasBet);
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,12 +127,12 @@ const Positions = () => {
                 Connect Wallet
               </button>
             </motion.div>
-          ) : isLoading || roundsLoading ? (
+          ) : isLoading || roundsLoading || multiLoading ? (
             <motion.div variants={item} className="text-center py-20 text-muted-foreground">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               Loading positions from contract…
             </motion.div>
-          ) : myMarkets.length === 0 && myRounds.length === 0 ? (
+          ) : myMarkets.length === 0 && myRounds.length === 0 && myMulti.length === 0 ? (
             <motion.div variants={item} className="text-center py-20">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
                 <ShieldCheck className="w-8 h-8 text-primary" />
@@ -131,6 +144,20 @@ const Positions = () => {
             </motion.div>
           ) : (
             <div className="space-y-8">
+              {myMulti.length > 0 && (
+                <section className="space-y-4">
+                  <h2 className="text-lg font-semibold text-hero-heading">Multi-Outcome Markets</h2>
+                  {myMulti.map((m) => (
+                    <motion.div key={String(m.id)} variants={item} className="liquid-glass rounded-2xl p-6">
+                      <h3 className="text-base font-semibold mb-2">{m.question}</h3>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Manage reveal and claim on the Multi page.
+                      </p>
+                      <a href="/multi" className="text-sm text-primary hover:underline">Open Multi →</a>
+                    </motion.div>
+                  ))}
+                </section>
+              )}
               {myRounds.length > 0 && roundsConfigured && (
                 <section className="space-y-4">
                   <h2 className="text-lg font-semibold text-hero-heading">Price Rounds</h2>
