@@ -1,12 +1,10 @@
 ﻿import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Clock, Users, Plus, ShieldCheck, Globe, BarChart2, Filter, Flame, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/shared/Navbar";
-import { BetInterface } from "@/components/markets/BetInterface";
 import { CreateMarketModal } from "@/components/markets/CreateMarketModal";
-import { PositionPanel } from "@/components/markets/PositionPanel";
-import { ResolutionPanel } from "@/components/markets/ResolutionPanel";
 import { useMarkets, type Market } from "@/hooks/useMarkets";
 import { useHlsVideo } from "@/hooks/useHlsVideo";
 import { getMarketMeta, CATEGORY_COLORS } from "@/config/market-metadata";
@@ -14,14 +12,6 @@ import { getMarketMeta, CATEGORY_COLORS } from "@/config/market-metadata";
 // ─── Static featured markets removed — only real on-chain markets shown ──────
 
 const CATEGORIES = ["All", "Crypto", "Finance", "Politics", "Regulation", "Tech"];
-
-const sidebarModules = [
-  { name: "PhantomBet",       wave: 1, active: true  },
-  { name: "PhantomMulti",     wave: 2, active: false },
-  { name: "PhantomLiquidity", wave: 3, active: false },
-  { name: "PhantomFutures",   wave: 4, active: false },
-  { name: "PhantomOracle",    wave: 5, active: false },
-];
 
 const container = {
   hidden: {},
@@ -40,7 +30,7 @@ function formatDeadline(ts: bigint): string {
 
 // ─── On-chain market card ─────────────────────────────────────────────────────
 
-function ChainCard({ market, selected, onClick }: { market: Market; selected: boolean; onClick: () => void }) {
+function ChainCard({ market, onClick }: { market: Market; onClick: () => void }) {
   const meta = getMarketMeta(market.id);
   const yes = market.poolsRevealed && market.revealedTotalPool > 0n
     ? Math.round(Number(market.revealedYesPool) * 100 / Number(market.revealedTotalPool))
@@ -51,7 +41,7 @@ function ChainCard({ market, selected, onClick }: { market: Market; selected: bo
     <motion.div
       variants={item}
       onClick={onClick}
-      className={`group liquid-glass rounded-2xl overflow-hidden cursor-pointer transition-all border ${selected ? "border-primary/25 bg-primary/[0.03]" : "border-border/20 hover:border-border/35"}`}
+      className="group liquid-glass rounded-2xl overflow-hidden cursor-pointer transition-all border border-border/20 hover:border-primary/25 hover:bg-primary/[0.02]"
     >
       {/* Image header (shown when metadata has image) */}
       {meta?.image && (
@@ -101,15 +91,23 @@ function ChainCard({ market, selected, onClick }: { market: Market; selected: bo
         <h3 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-hero-heading transition-colors mb-3">
           {market.question}
         </h3>
-        {/* YES / NO bar */}
+        {/* YES / NO bar — real data after pool reveal only */}
         <div className="mb-3">
-          <div className="flex justify-between text-[10px] font-mono mb-1">
-            <span className="text-emerald-400 font-semibold">YES {yes}%</span>
-            <span className="text-red-400 font-semibold">NO {100 - yes}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-400/60 transition-all" style={{ width: `${yes}%` }} />
-          </div>
+          {market.poolsRevealed && market.revealedTotalPool > 0n ? (
+            <>
+              <div className="flex justify-between text-[10px] font-mono mb-1">
+                <span className="text-emerald-400 font-semibold">YES {yes}%</span>
+                <span className="text-red-400 font-semibold">NO {100 - yes}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
+                <div className="h-full rounded-full bg-emerald-400/60 transition-all" style={{ width: `${yes}%` }} />
+              </div>
+            </>
+          ) : (
+            <p className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+              <Lock className="w-2.5 h-2.5 text-primary" /> Pools encrypted until resolution
+            </p>
+          )}
         </div>
         {/* Footer */}
         <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
@@ -124,8 +122,8 @@ function ChainCard({ market, selected, onClick }: { market: Market; selected: bo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const Markets = () => {
+  const navigate = useNavigate();
   const { markets, isLoading, refetch } = useMarkets();
-  const [selectedId, setSelectedId] = useState<bigint | null>(null);
   const [activeTab, setActiveTab] = useState<"active" | "resolved" | "my bets">("active");
   const [category, setCategory] = useState("All");
   const [showCreate, setShowCreate] = useState(false);
@@ -133,13 +131,16 @@ const Markets = () => {
   const bgVideoRef = useHlsVideo("https://stream.mux.com/Jwr2RhmsNrd6GEspBNgm02vJsRZAGlaoQIh4AucGdASw.m3u8");
 
   const filteredChain = useMemo(() => markets.filter((m) => {
-    if (activeTab === "active") return !m.resolved;
-    if (activeTab === "resolved") return m.resolved;
-    if (activeTab === "my bets") return !!m.hasBet;
+    if (activeTab === "active" && m.resolved) return false;
+    if (activeTab === "resolved" && !m.resolved) return false;
+    if (activeTab === "my bets" && !m.hasBet) return false;
+    if (category !== "All") {
+      const meta = getMarketMeta(m.id);
+      if (meta?.category !== category) return false;
+    }
     return true;
-  }), [markets, activeTab]);
+  }), [markets, activeTab, category]);
 
-  const selected = selectedId != null ? markets.find((m) => m.id === selectedId) : null;
   const hasOnChain = !isLoading && filteredChain.length > 0;
   const activeCount = markets.filter((m) => !m.resolved).length;
 
@@ -154,61 +155,8 @@ const Markets = () => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/[0.03] blur-[120px]" />
       </div>
 
-      <div className="relative z-10 pt-20 flex min-h-screen">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex w-64 flex-col border-r border-border/20 p-6 sticky top-20 h-[calc(100vh-5rem)]">
-          <h3 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-5 font-mono">Modules</h3>
-          <div className="space-y-1">
-            {sidebarModules.map((m) => (
-              <div
-                key={m.name}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                  m.active
-                    ? "bg-primary/[0.08] text-primary border border-primary/15 cursor-default"
-                    : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-white/[0.02] cursor-not-allowed"
-                }`}
-              >
-                {m.active ? <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_hsl(121_95%_76%/0.5)]" /> : <Lock className="w-3.5 h-3.5" />}
-                <span className="font-medium">{m.name}</span>
-                {!m.active && <span className="ml-auto text-[10px] font-mono opacity-60">W{m.wave}</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* Category filter */}
-          <div className="mt-8">
-            <h3 className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3 font-mono flex items-center gap-1"><Filter className="w-3 h-3" /> Categories</h3>
-            <div className="space-y-0.5">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${
-                    category === cat
-                      ? "bg-primary/[0.08] text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-auto pt-6 border-t border-border/20">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3 font-mono flex items-center gap-1.5">
-              <ShieldCheck className="w-3 h-3 text-primary" /> Protocol Status
-            </div>
-            <div className="space-y-2 text-[11px] font-mono text-muted-foreground">
-              <div className="flex justify-between"><span>Network</span><span className="text-primary">Arb Sepolia</span></div>
-              <div className="flex justify-between"><span>FHE Engine</span><span className="text-primary">Active</span></div>
-              <div className="flex justify-between"><span>Markets</span><span className="text-primary">{markets.length}</span></div>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex-1 p-6 lg:p-10">
+      <div className="relative z-10 pt-20 min-h-screen">
+        <main className="p-6 lg:p-10 max-w-6xl mx-auto">
           <motion.div variants={container} initial="hidden" animate="visible" className="max-w-6xl mx-auto">
 
             {/* Header */}
@@ -241,14 +189,31 @@ const Markets = () => {
               ))}
             </motion.div>
 
+            {/* Category filter */}
+            <motion.div variants={item} className="flex flex-wrap items-center gap-2 mb-6">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-mono transition-colors ${
+                    category === cat
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "text-muted-foreground border border-border/25 hover:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </motion.div>
+
             {/* Markets section */}
             <motion.div variants={item}>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-primary" />
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">On-Chain Markets (FHE)</h2>
                 </div>
-                {/* Tabs */}
                 <div className="flex gap-1 liquid-glass rounded-full p-1">
                   {(["active", "resolved", "my bets"] as const).map((tab) => (
                     <button
@@ -281,116 +246,14 @@ const Markets = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Card grid — 2 cols on md, 3 on xl */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredChain.map((market) => (
-                      <ChainCard
-                        key={String(market.id)}
-                        market={market}
-                        selected={selected?.id === market.id}
-                        onClick={() => setSelectedId((prev) => prev === market.id ? null : market.id)}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Inline detail panel — slides in below grid when a card is selected */}
-                  {selected && (
-                    <motion.div
-                      key={String(selected.id)}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                      className="grid lg:grid-cols-5 gap-6"
-                    >
-                      {/* Detail card */}
-                      <div className="lg:col-span-3 liquid-glass rounded-2xl overflow-hidden">
-                        {getMarketMeta(selected.id)?.image && (
-                          <div className="relative h-44 overflow-hidden">
-                            <img
-                              src={getMarketMeta(selected.id)!.image}
-                              alt={selected.question}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/25 to-transparent" />
-                            <div className="absolute bottom-3 left-4 flex gap-2">
-                              {getMarketMeta(selected.id)?.category && (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${CATEGORY_COLORS[getMarketMeta(selected.id)!.category] ?? ""}`}>
-                                  {getMarketMeta(selected.id)?.tag ?? getMarketMeta(selected.id)?.category}
-                                </span>
-                              )}
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/20 text-primary border border-primary/30">
-                                On-chain · FHE · Arb Sepolia
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => setSelectedId(null)}
-                              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-background/60 border border-border/30 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-base leading-none"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )}
-                        <div className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1 pr-3">
-                              {!getMarketMeta(selected.id)?.image && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 mb-2 inline-block">
-                                  On-chain · FHE · Arb Sepolia
-                                </span>
-                              )}
-                              <h2 className="text-base font-semibold text-hero-heading leading-snug">{selected.question}</h2>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1.5">
-                                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {String(selected.bettorCount)} bettors</span>
-                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatDeadline(selected.deadline)}</span>
-                              </div>
-                            </div>
-                            <span className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs uppercase ${!selected.resolved ? "bg-primary/10 text-primary border border-primary/20" : "bg-blue-500/10 text-blue-400"}`}>
-                              {selected.resolved ? "resolved" : "live"}
-                            </span>
-                          </div>
-
-                          {selected.poolsRevealed && selected.revealedTotalPool > 0n ? (
-                            <div className="mb-4 p-3 rounded-xl bg-white/[0.03] border border-border/20">
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Live Pool</p>
-                              <div className="flex justify-between text-xs font-mono mb-1.5">
-                                <span className="text-emerald-400 font-semibold">YES — {(Number(selected.revealedYesPool) / 1e9).toFixed(4)} ETH</span>
-                                <span className="text-red-400 font-semibold">NO — {(Number(selected.revealedNoPool) / 1e9).toFixed(4)} ETH</span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-red-400/20 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-emerald-400/70 transition-all"
-                                  style={{ width: `${Math.round(Number(selected.revealedYesPool) * 100 / Number(selected.revealedTotalPool))}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] font-mono text-muted-foreground mt-1.5 text-right">Total: {(Number(selected.revealedTotalPool) / 1e9).toFixed(4)} ETH</p>
-                            </div>
-                          ) : !selected.resolved ? (
-                            <p className="text-xs text-muted-foreground mb-4 flex items-center gap-2">
-                              <Lock className="w-3 h-3 text-primary shrink-0" />
-                              Pool amounts FHE-encrypted until resolution — direction hidden from all parties.
-                            </p>
-                          ) : null}
-
-                          {!selected.resolved ? (
-                            <BetInterface marketId={selected.id} deadline={selected.deadline} resolved={selected.resolved} onSuccess={refetch} />
-                          ) : (
-                            <div className="text-center py-5">
-                              <ShieldCheck className="w-7 h-7 text-blue-400 mx-auto mb-2" />
-                              <p className="font-semibold">{selected.poolsRevealed ? `Resolved: ${selected.outcome ? "YES ✓" : "NO ✓"}` : "Awaiting pool reveal"}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Sidebar panels */}
-                      <div className="lg:col-span-2 space-y-4">
-                        <PositionPanel marketId={selected.id} hasBet={!!selected.hasBet} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onClaimed={refetch} />
-                        <ResolutionPanel marketId={selected.id} creator={selected.creator} resolved={selected.resolved} poolsRevealed={selected.poolsRevealed} onResolved={refetch} />
-                      </div>
-                    </motion.div>
-                  )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredChain.map((market) => (
+                    <ChainCard
+                      key={String(market.id)}
+                      market={market}
+                      onClick={() => navigate(`/markets/${market.id}`)}
+                    />
+                  ))}
                 </div>
               )}
             </motion.div>
