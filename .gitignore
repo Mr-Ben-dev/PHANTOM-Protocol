@@ -18,6 +18,12 @@ plan.md
 guide.md
 skill.md
 about.md
+FEATURE_INVENTORY.md
+FHE_COMPLIANCE.md
+SECURITY_AUDIT.md
+FINAL_VERIFICATION.md
+docs/
+render.yaml
 
 # Frontend build output
 frontend/dist/
