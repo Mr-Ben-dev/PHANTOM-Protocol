@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useAccount } from "wagmi";
 import { useReadContract } from "wagmi";
 import { PHANTOM_MULTI_ADDRESS, PHANTOM_MULTI_ABI } from "@/config/contracts";
-import { getCofheClient } from "@/lib/fhe";
+import { decryptViewUint64 } from "@/lib/cofheDecrypt";
 import { usePhantomMulti } from "./usePhantomMulti";
 
 export interface DecryptedMultiBet {
@@ -41,24 +41,8 @@ export function useDecryptMultiBet(marketId: bigint) {
     setDecrypting(true);
     setError(null);
     try {
-      const client = getCofheClient();
-
-      // FheTypes.Uint64 = 5
-      const decryptResult = (await client
-        .decryptForView(betCtHash as never, 5 /* Uint64 */)
-        .execute()) as { value: bigint; signature: `0x${string}` };
-
-      // If the SDK returns { value, signature }, use them for on-chain reveal
-      const value = typeof decryptResult === "bigint"
-        ? decryptResult
-        : decryptResult.value;
-
-      const sig: `0x${string}` = typeof decryptResult === "bigint"
-        ? "0x"
-        : decryptResult.signature;
-
-      // Submit the reveal proof on-chain
-      await revealMyBet(marketId, betCtHash as bigint, value, sig);
+      const value = await decryptViewUint64(betCtHash as bigint);
+      await revealMyBet(marketId, betCtHash as bigint, value, "0x");
 
       setResult({ amount: value });
     } catch (err) {
