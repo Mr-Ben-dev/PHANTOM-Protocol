@@ -4,10 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncStepper } from "@/components/shared/AsyncStepper";
 import { EncryptStep } from "@/hooks/useFHEStatus";
-import { useEncryptBet } from "@/hooks/useEncryptBet";
 import { usePhantomBet } from "@/hooks/usePhantomBet";
 import { useWalletAuth } from "@/hooks/useWalletAuth";
-import { parseUnits } from "viem";
 
 interface BetInterfaceProps {
   marketId: bigint;
@@ -18,10 +16,11 @@ interface BetInterfaceProps {
 
 export function BetInterface({ marketId, deadline, resolved, onSuccess }: BetInterfaceProps) {
   const { isConnected, ensureRightChain } = useWalletAuth();
-  const { encrypt, step, errorMsg, reset } = useEncryptBet();
-  const { placeBet } = usePhantomBet();
+  const { placeBetSimple } = usePhantomBet();
   const [amount, setAmount] = useState("");
   const [side, setSide] = useState<boolean | null>(null);
+  const [step, setStep] = useState<EncryptStep>(EncryptStep.Idle);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isExpired = BigInt(Math.floor(Date.now() / 1000)) > deadline;
   const disabled = resolved || isExpired || !isConnected || step !== EncryptStep.Idle;
@@ -29,23 +28,20 @@ export function BetInterface({ marketId, deadline, resolved, onSuccess }: BetInt
   async function handleBet() {
     if (side === null || !amount) return;
     await ensureRightChain();
-    reset();
+    setStep(EncryptStep.Submitting);
+    setErrorMsg(null);
     try {
-      const amountWei = parseUnits(amount, 0);          // raw token units
-      const encrypted = await encrypt(amountWei, side);
-      if (!encrypted) return;
-
-      // setStep to Submitting is handled after encrypt resolves
-      await placeBet(marketId, encrypted.encAmount, encrypted.encSide);
+      await placeBetSimple(marketId, side, amount);
+      setStep(EncryptStep.Idle);
       onSuccess?.();
-    } catch (_) {
-      // error state is set inside useEncryptBet / usePhantomBet
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setStep(EncryptStep.Idle);
     }
   }
 
   return (
     <div className="space-y-4">
-      {/* YES / NO toggle */}
       <div className="grid grid-cols-2 gap-2">
         <button
           disabled={disabled}
@@ -71,39 +67,32 @@ export function BetInterface({ marketId, deadline, resolved, onSuccess }: BetInt
         </button>
       </div>
 
-      {/* Amount */}
       <Input
         type="number"
-        min="1"
-        step="1"
-        placeholder="Amount (tokens)"
+        min="0"
+        step="0.001"
+        placeholder="ETH stake (e.g. 0.01)"
         value={amount}
-        onChange={(e) => setAmount(e.target.value)}
         disabled={disabled}
-        className="bg-black/20 border-border/30"
+        onChange={(e) => setAmount(e.target.value)}
       />
 
-      {/* FHE progress */}
-      {step !== EncryptStep.Idle && (
-        <AsyncStepper step={step} errorMsg={errorMsg} />
-      )}
+      <AsyncStepper step={step} errorMsg={errorMsg} />
 
-      {!isConnected ? (
-        <p className="text-xs text-muted-foreground text-center">Connect wallet to place a bet</p>
-      ) : resolved ? (
-        <p className="text-xs text-muted-foreground text-center">Market resolved</p>
-      ) : isExpired ? (
-        <p className="text-xs text-muted-foreground text-center">Betting period closed</p>
-      ) : (
+      <motion.div whileTap={{ scale: 0.98 }}>
         <Button
           variant="hero"
           className="w-full"
-          disabled={side === null || !amount || step !== EncryptStep.Idle}
+          disabled={disabled || side === null || !amount}
           onClick={handleBet}
         >
-          Encrypt &amp; Place Bet
+          {step === EncryptStep.Submitting ? "Submitting…" : "Place Encrypted Bet"}
         </Button>
-      )}
+      </motion.div>
+
+      <p className="text-[11px] text-muted-foreground text-center">
+        ETH stake is public; side is FHE-encrypted on-chain.
+      </p>
     </div>
   );
 }
