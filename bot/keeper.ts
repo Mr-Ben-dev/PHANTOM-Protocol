@@ -11,6 +11,7 @@
  */
 
 import "dotenv/config";
+import { createServer } from "node:http";
 import {
   createPublicClient,
   createWalletClient,
@@ -28,6 +29,13 @@ const PRIVATE_KEY = (process.env.PRIVATE_KEY ?? "") as Hex;
 const RPC_URL = process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
 const ROUNDS_ADDRESS = (process.env.PHANTOM_ROUNDS_ADDRESS ?? "") as Address;
 const POLL_MS = Number(process.env.POLL_INTERVAL_SECONDS ?? 30) * 1000;
+const HEALTH_PORT = Number(process.env.PORT ?? 10000);
+const MIN_BALANCE_WEI = BigInt(process.env.MIN_BALANCE_WEI ?? "5000000000000000"); // 0.005 ETH
+
+let lastTickAt = new Date().toISOString();
+let lastTickError: string | null = null;
+let lastRoundCount = 0n;
+let authorized = true;
 
 if (!PRIVATE_KEY.startsWith("0x")) { console.error("Set PRIVATE_KEY=0x... in .env"); process.exit(1); }
 if (!ROUNDS_ADDRESS || ROUNDS_ADDRESS === "0x") { console.error("Set PHANTOM_ROUNDS_ADDRESS in .env"); process.exit(1); }
@@ -208,25 +216,62 @@ async function autoCreateRounds(): Promise<void> {
   }
 }
 
+async function checkAuthorization(): Promise<boolean> {
+  const [isBot, isSigner, isPaused, balance] = await Promise.all([
+    publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "roundBots", args: [account.address] }),
+    publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "oracleSigners", args: [oracleAccount.address] }),
+    publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "paused" }),
+    publicClient.getBalance({ address: account.address }),
+  ]);
+
+  if (!isBot) log(`⚠ NOT a roundBot — setRoundBot(${account.address}, true) needed`);
+  if (!isSigner) log(`⚠ NOT an oracleSigner — setOracleSigner(${oracleAccount.address}, true) needed`);
+  if (isPaused) log("⚠ Contract PAUSED — skipping tick");
+  if (balance < MIN_BALANCE_WEI) log(`⚠ LOW BALANCE: ${balance} wei — fund keeper wallet`);
+
+  return isBot && isSigner && !isPaused;
+}
+
 async function tick(): Promise<void> {
   log("─── tick ─────────────────────────────────────────────────────");
+  lastTickAt = new Date().toISOString();
+  lastTickError = null;
   try {
-    const [isBot, isSigner, isPaused] = await Promise.all([
-      publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "roundBots", args: [account.address] }),
-      publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "oracleSigners", args: [oracleAccount.address] }),
-      publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "paused" }),
-    ]);
-    if (!isBot) log(`⚠ NOT a roundBot — setRoundBot(${account.address}, true) needed`);
-    if (!isSigner) log(`⚠ NOT an oracleSigner — setOracleSigner(${oracleAccount.address}, true) needed`);
-    if (isPaused) { log("⚠ Contract PAUSED — skipping"); return; }
+    authorized = await checkAuthorization();
+    if (!authorized) return;
 
     await autoCreateRounds();
     const count = await publicClient.readContract({ address: ROUNDS_ADDRESS, abi: ABI, functionName: "getRoundCount" });
+    lastRoundCount = count;
     log(`  Rounds on-chain: ${count}`);
-    for (let i = 0n; i < count; i++) await processRound(i);
+
+    for (let i = 0n; i < count; i++) {
+      const [, , , , , , , status] = await publicClient.readContract({
+        address: ROUNDS_ADDRESS, abi: ABI, functionName: "getRoundCore", args: [i],
+      });
+      const st = Number(status);
+      if (st === STATUS.NONE || st === STATUS.CANCELED) continue;
+      await processRound(i);
+    }
   } catch (err) {
-    log(`Tick error: ${err instanceof Error ? err.message : err}`);
+    lastTickError = err instanceof Error ? err.message : String(err);
+    log(`Tick error: ${lastTickError}`);
   }
+}
+
+function startHealthServer(): void {
+  createServer((_req, res) => {
+    const body = JSON.stringify({
+      ok: authorized && !lastTickError,
+      lastTick: lastTickAt,
+      lastError: lastTickError,
+      roundCount: lastRoundCount.toString(),
+      keeper: account.address,
+      contract: ROUNDS_ADDRESS,
+    });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(body);
+  }).listen(HEALTH_PORT, () => log(`Health server listening on :${HEALTH_PORT}/health`));
 }
 
 console.log("═".repeat(60));
@@ -236,5 +281,6 @@ console.log(`  Contract: ${ROUNDS_ADDRESS}`);
 console.log(`  Poll    : ${POLL_MS / 1000}s`);
 console.log("═".repeat(60));
 
+startHealthServer();
 await tick();
 setInterval(() => { void tick(); }, POLL_MS);
