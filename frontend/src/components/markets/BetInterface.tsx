@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { usePublicClient } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncStepper } from "@/components/shared/AsyncStepper";
@@ -17,6 +18,7 @@ interface BetInterfaceProps {
 export function BetInterface({ marketId, deadline, resolved, onSuccess }: BetInterfaceProps) {
   const { isConnected, ensureRightChain } = useWalletAuth();
   const { placeBetSimple } = usePhantomBet();
+  const publicClient = usePublicClient();
   const [amount, setAmount] = useState("");
   const [side, setSide] = useState<boolean | null>(null);
   const [step, setStep] = useState<EncryptStep>(EncryptStep.Idle);
@@ -31,7 +33,12 @@ export function BetInterface({ marketId, deadline, resolved, onSuccess }: BetInt
     setStep(EncryptStep.Submitting);
     setErrorMsg(null);
     try {
-      await placeBetSimple(marketId, side, amount);
+      const hash = await placeBetSimple(marketId, side, amount);
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash });
+      }
+      setAmount("");
+      setSide(null);
       setStep(EncryptStep.Idle);
       onSuccess?.();
     } catch (err) {
