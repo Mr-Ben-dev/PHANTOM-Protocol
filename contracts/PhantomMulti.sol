@@ -61,6 +61,7 @@ contract PhantomMulti is PhantomACL {
         bool        canceled;
         address     creator;
         MultiStatus status;
+        uint256     totalEth;
         // Encrypted state
         euint64[MAX_OUTCOMES] encPools;         // Encrypted pool per outcome (gwei)
         euint64               encBettorCount;   // Hidden head count (privacy fix)
@@ -84,11 +85,16 @@ contract PhantomMulti is PhantomACL {
     /// @dev Plaintext revealed bet amounts (set after revealMyBet).
     mapping(uint256 => mapping(address => uint64))               public  revealedBets;
     mapping(uint256 => mapping(address => bool))                 public  betRevealed;
+    mapping(uint256 => mapping(address => bool))                 public  choiceRevealed;
+    mapping(uint256 => mapping(address => uint8))                public  revealedChoices;
+    mapping(uint256 => mapping(address => uint256))               public  ethStakes;
+    mapping(uint256 => bool)                                     private marketFeeCollected;
 
     mapping(uint256 => mapping(address => bool))                 public  hasBet;
     mapping(uint256 => mapping(address => bool))                 public  hasClaimed;
 
     uint256 public marketCount;
+    uint256 public pendingFees;
 
     // ═══════════════════════════════════════════════════════════════
     // EVENTS
@@ -107,7 +113,9 @@ contract PhantomMulti is PhantomACL {
     event MultiPoolsRevealed(uint256 indexed marketId, uint64 totalPool);
     event MultiPayoutClaimed(uint256 indexed marketId, address indexed bettor, uint64 amount);
     event MultiBetRevealed(uint256 indexed marketId, address indexed bettor, uint64 amount);
+    event MultiChoiceRevealed(uint256 indexed marketId, address indexed bettor, uint8 outcomeIdx);
     event MultiMarketCanceled(uint256 indexed marketId, string reason);
+    event FeesWithdrawn(address indexed to, uint256 amount);
 
     // ═══════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -116,6 +124,17 @@ contract PhantomMulti is PhantomACL {
     constructor() {
         owner = msg.sender;
         roles[msg.sender] = Role.RESOLVER;
+    }
+
+    receive() external payable {}
+
+    function withdrawFees(address payable to) external onlyOwner {
+        require(to != address(0), "PhantomMulti: zero address");
+        uint256 amount = pendingFees;
+        pendingFees = 0;
+        (bool ok,) = to.call{value: amount}("");
+        require(ok, "PhantomMulti: fee transfer failed");
+        emit FeesWithdrawn(to, amount);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -175,36 +194,30 @@ contract PhantomMulti is PhantomACL {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * @notice Place a bet with plaintext outcome index and encrypted amount.
-     *         Primary UX path — no CoFHE SDK client-side encryption required.
-     *         The outcome index is visible on-chain (logged via event omission,
-     *         not stored in plaintext — index is trivially encrypted for routing).
-     *
+     * @notice Place a bet with plaintext outcome index and ETH stake.
      * @param _marketId    Target market.
-     * @param _outcomeIdx  Outcome bucket index (0-based, must be < outcomeCount).
-     * @param _encAmount   Client-encrypted bet amount (InEuint64).
+     * @param _outcomeIdx  Outcome bucket index (0-based).
      */
     function placeMultiBetSimple(
-        uint256            _marketId,
-        uint8              _outcomeIdx,
-        InEuint64 calldata _encAmount
-    ) external {
+        uint256 _marketId,
+        uint8   _outcomeIdx
+    ) external payable {
         MultiMarket storage m = markets[_marketId];
 
         require(m.status == MultiStatus.OPEN,          "Market not open");
         require(block.timestamp < m.deadline,          "Betting closed");
         require(!hasBet[_marketId][msg.sender],        "Already bet");
         require(_outcomeIdx < m.outcomeCount,          "Invalid outcome");
+        require(msg.value > 0,                         "No stake");
 
-        // Deserialise encrypted amount from client
-        euint64 amount = FHE.asEuint64(_encAmount);
+        uint64 amountGwei = uint64(msg.value / 1 gwei);
+        require(amountGwei > 0, "Stake too small");
 
-        // Trivially encrypt the outcome index for FHE routing
-        // (the index value is public in this path — consistent with Wave 3 simple bet)
+        euint64 amount = FHE.asEuint64(amountGwei);
         euint8 encIdx = FHE.asEuint8(_outcomeIdx);
         FHE.allowThis(encIdx);
 
-        _routeBet(_marketId, m, amount, encIdx);
+        _routeBet(_marketId, m, amount, encIdx, msg.value);
 
         emit MultiBetPlaced(_marketId, msg.sender);
     }
@@ -222,20 +235,20 @@ contract PhantomMulti is PhantomACL {
         uint256           _marketId,
         InEuint8 calldata _encOutcomeIdx,
         InEuint64 calldata _encAmount
-    ) external {
+    ) external payable {
         MultiMarket storage m = markets[_marketId];
 
         require(m.status == MultiStatus.OPEN,    "Market not open");
         require(block.timestamp < m.deadline,    "Betting closed");
         require(!hasBet[_marketId][msg.sender],  "Already bet");
+        require(msg.value > 0,                   "No stake");
 
-        // Deserialise both encrypted inputs from client
         euint8  encIdx = FHE.asEuint8(_encOutcomeIdx);
         euint64 amount = FHE.asEuint64(_encAmount);
 
         FHE.allowThis(encIdx);
 
-        _routeBet(_marketId, m, amount, encIdx);
+        _routeBet(_marketId, m, amount, encIdx, msg.value);
 
         emit MultiBetPlaced(_marketId, msg.sender);
     }
@@ -248,16 +261,18 @@ contract PhantomMulti is PhantomACL {
         uint256              _marketId,
         MultiMarket storage  m,
         euint64              amount,
-        euint8               encIdx
+        euint8               encIdx,
+        uint256              stake
     ) internal {
-        // ACL for bet amount and choice — bettor can read, contract retains access
         FHE.allowThis(amount);
         FHE.allowSender(amount);
         FHE.allowSender(encIdx);
 
-        bets[_marketId][msg.sender]      = amount;
+        bets[_marketId][msg.sender]       = amount;
         betChoices[_marketId][msg.sender] = encIdx;
-        hasBet[_marketId][msg.sender]    = true;
+        hasBet[_marketId][msg.sender]     = true;
+        ethStakes[_marketId][msg.sender]  = stake;
+        m.totalEth += stake;
 
         euint64 zero = FHE.asEuint64(0);
         FHE.allowThis(zero);
@@ -308,13 +323,14 @@ contract PhantomMulti is PhantomACL {
         m.resolved       = true;
         m.status         = MultiStatus.RESOLVED;
 
-        // Make all pool handles publicly decryptable
         for (uint8 i = 0; i < MAX_OUTCOMES; i++) {
             FHE.allowPublic(m.encPools[i]);
         }
 
-        // Grant AUDITOR role access to encrypted bettor count
-        // (bettorCount remains private from public; auditors can verify fairness)
+        if (!marketFeeCollected[_marketId]) {
+            pendingFees += m.totalEth * 3 / 100;
+            marketFeeCollected[_marketId] = true;
+        }
 
         emit MultiMarketResolved(_marketId, _winningOutcome);
     }
@@ -393,6 +409,24 @@ contract PhantomMulti is PhantomACL {
         emit MultiBetRevealed(_marketId, msg.sender, _betAmount);
     }
 
+    function revealMyChoice(
+        uint256  _marketId,
+        uint8    outcomeIdx,
+        bytes calldata sig
+    ) external {
+        require(hasBet[_marketId][msg.sender], "No bet placed");
+        require(!choiceRevealed[_marketId][msg.sender], "Already revealed");
+        require(markets[_marketId].resolved, "Not resolved");
+        require(outcomeIdx < markets[_marketId].outcomeCount, "Invalid outcome");
+
+        FHE.publishDecryptResult(betChoices[_marketId][msg.sender], outcomeIdx, sig);
+
+        revealedChoices[_marketId][msg.sender] = outcomeIdx;
+        choiceRevealed[_marketId][msg.sender]  = true;
+
+        emit MultiChoiceRevealed(_marketId, msg.sender, outcomeIdx);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // CLAIM PAYOUT
     // ═══════════════════════════════════════════════════════════════
@@ -412,18 +446,20 @@ contract PhantomMulti is PhantomACL {
         require(m.poolsRevealed,                         "Pools not revealed");
         require(hasBet[_marketId][msg.sender],           "No bet placed");
         require(!hasClaimed[_marketId][msg.sender],      "Already claimed");
-        require(betRevealed[_marketId][msg.sender],      "Bet not revealed");
-
-        uint64 betAmt  = revealedBets[_marketId][msg.sender];
-        uint64 winPool = m.revealedPools[m.winningOutcome];
-        uint64 total   = m.revealedTotalPool;
-
-        require(winPool > 0, "Empty winning pool");
-
-        // Payout = betAmt * total * 97 / (winPool * 100)
-        uint256 payout = (uint256(betAmt) * uint256(total) * 97) / (uint256(winPool) * 100);
+        require(choiceRevealed[_marketId][msg.sender],  "Choice not revealed");
+        require(revealedChoices[_marketId][msg.sender] == m.winningOutcome, "Wrong outcome");
 
         hasClaimed[_marketId][msg.sender] = true;
+
+        uint256 stake   = ethStakes[_marketId][msg.sender];
+        uint256 winPool = uint256(m.revealedPools[m.winningOutcome]) * 1 gwei;
+        require(winPool > 0, "Empty winning pool");
+
+        uint256 netPool = m.totalEth * 97 / 100;
+        uint256 payout  = stake * netPool / winPool;
+
+        (bool ok,) = payable(msg.sender).call{value: payout}("");
+        require(ok, "PhantomMulti: payout failed");
 
         emit MultiPayoutClaimed(_marketId, msg.sender, uint64(payout));
     }
@@ -450,6 +486,22 @@ contract PhantomMulti is PhantomACL {
         m.status   = MultiStatus.CANCELED;
 
         emit MultiMarketCanceled(_marketId, _reason);
+    }
+
+    function refundCanceledMultiMarket(uint256 _marketId) external {
+        MultiMarket storage m = markets[_marketId];
+        require(m.canceled, "Not canceled");
+        require(hasBet[_marketId][msg.sender], "No bet placed");
+        require(!hasClaimed[_marketId][msg.sender], "Already refunded");
+
+        hasClaimed[_marketId][msg.sender] = true;
+        uint256 refund = ethStakes[_marketId][msg.sender];
+        require(refund > 0, "Nothing to refund");
+
+        (bool ok,) = payable(msg.sender).call{value: refund}("");
+        require(ok, "PhantomMulti: refund failed");
+
+        emit MultiPayoutClaimed(_marketId, msg.sender, uint64(refund));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -491,6 +543,10 @@ contract PhantomMulti is PhantomACL {
     /**
      * @notice Returns core market info (public fields only).
      */
+    function getMultiMarketEth(uint256 _marketId) external view returns (uint256 totalEth, uint256 userStake) {
+        return (markets[_marketId].totalEth, ethStakes[_marketId][msg.sender]);
+    }
+
     function getMultiMarketInfo(uint256 _marketId) external view returns (
         string  memory question,
         uint8          outcomeCount,
@@ -501,7 +557,8 @@ contract PhantomMulti is PhantomACL {
         bool           poolsRevealed,
         bool           canceled,
         address        creator,
-        uint8          status
+        uint8          status,
+        uint256        totalEth
     ) {
         MultiMarket storage m = markets[_marketId];
         return (
@@ -514,7 +571,8 @@ contract PhantomMulti is PhantomACL {
             m.poolsRevealed,
             m.canceled,
             m.creator,
-            uint8(m.status)
+            uint8(m.status),
+            m.totalEth
         );
     }
 
