@@ -3,7 +3,7 @@
 **Fully homomorphic encrypted prediction markets and automated price rounds on Arbitrum Sepolia.**
 
 [![Live Demo](https://img.shields.io/badge/Demo-phantom--protocol--chi.vercel.app-0affab?style=flat-square)](https://phantom-protocol-chi.vercel.app/)
-[![Network](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-28a0f0?style=flat-square)](https://sepolia.arbiscan.io/address/0x31a578f2c63a85Ae13E1e12A859a2B5f775De228)
+[![Network](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-28a0f0?style=flat-square)](https://sepolia.arbiscan.io/address/0x561428264991044f47705C92CE482E37C9cD71b7)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.25-363636?style=flat-square)](https://soliditylang.org)
 [![Tests](https://img.shields.io/badge/Tests-120%20passing-brightgreen?style=flat-square)](#testing)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
@@ -235,10 +235,10 @@ claimRoundPayout()→ ETH sent to winner (97% of pool after 3% fee)
 
 | Contract | Address | Explorer |
 |---|---|---|
-| PhantomBet | `0x31a578f2c63a85Ae13E1e12A859a2B5f775De228` | [View](https://sepolia.arbiscan.io/address/0x31a578f2c63a85Ae13E1e12A859a2B5f775De228) |
+| PhantomBet | `0x561428264991044f47705C92CE482E37C9cD71b7` | [View](https://sepolia.arbiscan.io/address/0x561428264991044f47705C92CE482E37C9cD71b7) |
 | PhantomToken | `0x78AF03022b1cD35e75642Ac2A043a6d2cE472228` | [View](https://sepolia.arbiscan.io/address/0x78AF03022b1cD35e75642Ac2A043a6d2cE472228) |
 | PhantomRounds | `0x76db8a0429d19e8440e3D290F79c0613834c72a1` | [View](https://sepolia.arbiscan.io/address/0x76db8a0429d19e8440e3D290F79c0613834c72a1) |
-| PhantomMulti | `0x674200f50Ee8816355dB3105d06fF799d15720F3` | [View](https://sepolia.arbiscan.io/address/0x674200f50Ee8816355dB3105d06fF799d15720F3) |
+| PhantomMulti | `0x4923426E703530cc4C9467F9B47AF3C85599ebaF` | [View](https://sepolia.arbiscan.io/address/0x4923426E703530cc4C9467F9B47AF3C85599ebaF) |
 
 **Keeper / Deployer:** `0x18398aA1dFdA63F30529c46E90ac41c1E75F7Ecf`
 
@@ -373,10 +373,10 @@ npm run dev                       # http://localhost:5173
 **`frontend/.env`**
 
 ```env
-VITE_PHANTOM_BET_ADDRESS=0x31a578f2c63a85Ae13E1e12A859a2B5f775De228
+VITE_PHANTOM_BET_ADDRESS=0x561428264991044f47705C92CE482E37C9cD71b7
 VITE_PHANTOM_TOKEN_ADDRESS=0x78AF03022b1cD35e75642Ac2A043a6d2cE472228
 VITE_PHANTOM_ROUNDS_ADDRESS=0x76db8a0429d19e8440e3D290F79c0613834c72a1
-VITE_PHANTOM_MULTI_ADDRESS=0x674200f50Ee8816355dB3105d06fF799d15720F3
+VITE_PHANTOM_MULTI_ADDRESS=0x4923426E703530cc4C9467F9B47AF3C85599ebaF
 VITE_CHAIN_ID=421614
 ```
 
@@ -386,7 +386,7 @@ VITE_CHAIN_ID=421614
 PRIVATE_KEY=0x...
 RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
 PHANTOM_ROUNDS_ADDRESS=0x76db8a0429d19e8440e3D290F79c0613834c72a1
-PHANTOM_MULTI_ADDRESS=0x674200f50Ee8816355dB3105d06fF799d15720F3
+PHANTOM_MULTI_ADDRESS=0x4923426E703530cc4C9467F9B47AF3C85599ebaF
 POLL_INTERVAL_SECONDS=30
 ```
 

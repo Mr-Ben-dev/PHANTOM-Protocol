@@ -71,10 +71,10 @@ On-chain publishDecryptResult → settlement
 
 | Contract | Address |
 |---|---|
-| PhantomBet | `0x31a578f2c63a85Ae13E1e12A859a2B5f775De228` |
+| PhantomBet | `0x561428264991044f47705C92CE482E37C9cD71b7` |
 | PhantomToken | `0x78AF03022b1cD35e75642Ac2A043a6d2cE472228` |
 | PhantomRounds | `0x76db8a0429d19e8440e3D290F79c0613834c72a1` |
-| PhantomMulti | `0x674200f50Ee8816355dB3105d06fF799d15720F3` |
+| PhantomMulti | `0x4923426E703530cc4C9467F9B47AF3C85599ebaF` |
 
 Keeper: `0x18398aA1dFdA63F30529c46E90ac41c1E75F7Ecf`
 
