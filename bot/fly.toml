@@ -1,0 +1,31 @@
+# PHANTOM Keeper — Fly.io deployment
+# Free allowance: shared-cpu-1x 256MB (check fly.io/pricing for current limits)
+# Deploy from /bot: fly launch && fly secrets set PRIVATE_KEY=0x... RPC_URL=...
+
+app = "phantom-keeper"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PHANTOM_ROUNDS_ADDRESS = "0x76db8a0429d19e8440e3D290F79c0613834c72a1"
+  POLL_INTERVAL_SECONDS = "30"
+  PORT = "10000"
+
+[http_service]
+  internal_port = 10000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
