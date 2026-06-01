@@ -1,6 +1,11 @@
 import { useReadContracts } from "wagmi";
 import { useAccount } from "wagmi";
 import { PHANTOM_MULTI_ADDRESS, PHANTOM_MULTI_ABI } from "@/config/contracts";
+import {
+  asStringArray,
+  parseMultiMarketInfo,
+  parseRevealedPools,
+} from "@/lib/viemDecode";
 
 export interface MultiMarket {
   id: bigint;
@@ -15,6 +20,7 @@ export interface MultiMarket {
   creator: `0x${string}`;
   /** 0=NONE 1=OPEN 2=RESOLVED 3=CANCELED 4=PENDING_REVEAL */
   status: number;
+  totalEth: bigint;
   /** Outcome labels (8-length, unused slots are empty string) */
   outcomeLabels: string[];
   /** Revealed pool amounts per outcome (after poolsRevealed) */
@@ -94,48 +100,23 @@ export function useMultiMarkets() {
   for (let i = 0; i < countN; i++) {
     const offset = i * SLOTS_PER_MARKET;
 
-    const infoResult = batchData?.[offset]?.result as
-      | [string, number, bigint, bigint, number, boolean, boolean, boolean, `0x${string}`, number]
-      | undefined;
+    const info = parseMultiMarketInfo(batchData?.[offset]?.result);
+    if (!info) continue;
 
-    if (!infoResult) continue;
-
-    const labelsResult = batchData?.[offset + 1]?.result as string[] | undefined;
-    const poolsResult = batchData?.[offset + 2]?.result as
-      | { pools: readonly bigint[]; totalPool: bigint }
-      | undefined;
+    const outcomeLabels = asStringArray(batchData?.[offset + 1]?.result);
+    const { pools: revealedPools, totalPool: revealedTotalPool } = parseRevealedPools(
+      batchData?.[offset + 2]?.result,
+    );
     const hasBetResult = address
       ? (batchData?.[offset + 3]?.result as boolean | undefined)
       : undefined;
 
-    const [
-      question,
-      outcomeCount,
-      deadline,
-      resolutionTime,
-      winningOutcome,
-      resolved,
-      poolsRevealed,
-      canceled,
-      creator,
-      status,
-    ] = infoResult;
-
     markets.push({
       id: BigInt(i),
-      question,
-      outcomeCount,
-      deadline,
-      resolutionTime,
-      winningOutcome,
-      resolved,
-      poolsRevealed,
-      canceled,
-      creator,
-      status,
-      outcomeLabels: labelsResult ? Array.from(labelsResult) : [],
-      revealedPools: poolsResult ? Array.from(poolsResult.pools) : Array(8).fill(0n),
-      revealedTotalPool: poolsResult?.totalPool ?? 0n,
+      ...info,
+      outcomeLabels,
+      revealedPools,
+      revealedTotalPool,
       hasBet: hasBetResult,
     });
   }

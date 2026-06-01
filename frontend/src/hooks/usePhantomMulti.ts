@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useWriteContract, usePublicClient } from "wagmi";
+import { parseEther } from "viem";
 import { PHANTOM_MULTI_ADDRESS, PHANTOM_MULTI_ABI } from "@/config/contracts";
 
 type EncInput = {
@@ -44,13 +45,14 @@ export function usePhantomMulti() {
   // ── placeMultiBetSimple (primary UX path) ─────────────────────────────────
 
   const placeMultiBetSimple = useCallback(
-    async (marketId: bigint, outcomeIdx: number, encAmount: EncInput) => {
+    async (marketId: bigint, outcomeIdx: number, ethAmount: string) => {
       const gasPrice = await safeGasPrice(publicClient);
       return writeContractAsync({
         address: PHANTOM_MULTI_ADDRESS,
         abi: PHANTOM_MULTI_ABI,
         functionName: "placeMultiBetSimple",
-        args: [marketId, outcomeIdx, encAmount],
+        args: [marketId, outcomeIdx],
+        value: parseEther(ethAmount),
         gasPrice,
       });
     },
@@ -137,6 +139,20 @@ export function usePhantomMulti() {
 
   // ── claimMultiPayout ──────────────────────────────────────────────────────
 
+  const revealMyChoice = useCallback(
+    async (marketId: bigint, outcomeIdx: number, sig: `0x${string}`) => {
+      const gasPrice = await safeGasPrice(publicClient);
+      return writeContractAsync({
+        address: PHANTOM_MULTI_ADDRESS,
+        abi: PHANTOM_MULTI_ABI,
+        functionName: "revealMyChoice",
+        args: [marketId, outcomeIdx, sig],
+        gasPrice,
+      });
+    },
+    [writeContractAsync, publicClient],
+  );
+
   const claimMultiPayout = useCallback(
     async (marketId: bigint) => {
       const gasPrice = await safeGasPrice(publicClient);
@@ -174,6 +190,7 @@ export function usePhantomMulti() {
     resolveMultiMarket,
     revealMultiPools,
     revealMyBet,
+    revealMyChoice,
     claimMultiPayout,
     cancelMultiMarket,
   };
