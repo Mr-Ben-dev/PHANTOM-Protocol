@@ -8,7 +8,9 @@ export interface Market {
   deadline: bigint;
   resolutionTime: bigint;
   bettorCount: bigint;
+  totalEth: bigint;
   resolved: boolean;
+  canceled: boolean;
   outcome: boolean;
   creator: `0x${string}`;
   poolsRevealed: boolean;
@@ -77,7 +79,7 @@ export function useMarkets() {
 
   for (let i = 0; i < countN; i++) {
     const infoResult = batchData?.[i * stride]?.result as
-      | [string, bigint, bigint, bigint, boolean, boolean, `0x${string}`, boolean, bigint, bigint, bigint]
+      | [string, bigint, bigint, bigint, bigint, boolean, boolean, boolean, `0x${string}`, boolean, bigint, bigint, bigint]
       | undefined;
 
     if (!infoResult) continue;
@@ -87,7 +89,9 @@ export function useMarkets() {
       deadline,
       resolutionTime,
       bettorCount,
+      totalEth,
       resolved,
+      canceled,
       outcome,
       creator,
       poolsRevealed,
@@ -106,7 +110,9 @@ export function useMarkets() {
       deadline,
       resolutionTime,
       bettorCount,
+      totalEth,
       resolved,
+      canceled,
       outcome,
       creator,
       poolsRevealed,
